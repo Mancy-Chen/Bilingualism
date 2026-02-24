@@ -8,7 +8,7 @@ library(ggplot2)
 library(broom)
 
 # Read your Excel file (note the forward slashes)
-df <- read_excel(".../brainpad_results.xlsx")
+df <- read_excel("E:/Bilingualism/brainpad_results.xlsx")
 
 # Make sure the grouping variable is a factor and ordered properly
 df <- df |>
@@ -110,93 +110,91 @@ delta_slopes
 
 pairs(delta_slopes)
 ###############################################################################
-# Scatter plot with two subplots (raw/corrected BAG)
+# Scatter plot with two subplots (raw/corrected BAG) + bigger fonts + A/B tags (upper right)
+library(readxl)
+library(dplyr)
 library(ggplot2)
 library(emmeans)
 library(patchwork)
 
+# Load data + set factor order (edit path if needed)
+df <- read_excel("E:/Bilingualism/brainpad_results.xlsx") %>%
+  mutate(group = factor(group, levels = c("bilinguals", "translators", "interpreters")))
+
+# Optional but recommended: remove rows with missing values used in plots/models
+df_plot <- df %>%
+  filter(
+    !is.na(Age),
+    !is.na(group),
+    !is.na(Predicted_BAG_non_BC_Brainage),
+    !is.na(delta_cv5_Predicted_age_non_BC_Brainage)
+  )
+
 # Models
-lm_bag   <- lm(Predicted_BAG_non_BC_Brainage ~ Age * group, data = df)
-lm_delta <- lm(delta_cv5_Predicted_age_non_BC_Brainage ~ Age * group, data = df)
+lm_bag   <- lm(Predicted_BAG_non_BC_Brainage ~ Age * group, data = df_plot)
+lm_delta <- lm(delta_cv5_Predicted_age_non_BC_Brainage ~ Age * group, data = df_plot)
+
+# Bigger font theme (adjust sizes as you like)
+big_theme <- theme_minimal(base_size = 20) +
+  theme(
+    plot.title   = element_text(face = "bold", size = 22),
+    axis.title   = element_text(size = 20),
+    axis.text    = element_text(size = 18),
+    legend.title = element_text(size = 18),
+    legend.text  = element_text(size = 17)
+  )
 
 # Plot 1: Raw BAG
-p_bag <- ggplot(df, aes(x = Age,
-                        y = Predicted_BAG_non_BC_Brainage,
-                        color = group)) +
+p_bag <- ggplot(df_plot, aes(x = Age, y = Predicted_BAG_non_BC_Brainage, color = group)) +
   geom_point(alpha = 0.7, size = 3) +
   geom_smooth(method = "lm", se = TRUE, linewidth = 1.4) +
   scale_color_manual(
     values = c(
-      bilinguals    = "#1f77b4",
-      translators   = "#ff7f0e",
-      interpreters  = "#2ca02c"
+      bilinguals   = "#1f77b4",
+      translators  = "#ff7f0e",
+      interpreters = "#2ca02c"
     ),
     name = "Group",
     labels = c("Bilinguals", "Translators", "Interpreters")
   ) +
-  scale_y_continuous(
-    breaks = seq(-20, 20, 10),   # -20, -10, 0, 10, 20
-    limits = c(-20, 20)
-  ) +
-  labs(
-    x = "Age (years)",
-    y = "Raw BAG",
-    title = "Raw BAG by age"
-  ) +
-  theme_minimal(base_size = 16) +
-  theme(
-    legend.position = "right",
-    plot.title = element_text(face = "bold", size = 16),
-    axis.title = element_text(size = 16),
-    axis.text  = element_text(size = 14),
-    legend.title = element_text(size = 14),
-    legend.text  = element_text(size = 13)
-  )
+  scale_y_continuous(breaks = seq(-20, 20, 10), limits = c(-20, 20)) +
+  labs(x = "Age (years)", y = "Raw BAG", title = "Raw BAG by age") +
+  big_theme
 
 # Plot 2: Corrected BAG
-p_delta <- ggplot(df, aes(x = Age,
-                          y = delta_cv5_Predicted_age_non_BC_Brainage,
-                          color = group)) +
+p_delta <- ggplot(df_plot, aes(x = Age, y = delta_cv5_Predicted_age_non_BC_Brainage, color = group)) +
   geom_point(alpha = 0.7, size = 3) +
   geom_smooth(method = "lm", se = TRUE, linewidth = 1.4) +
   scale_color_manual(
     values = c(
-      bilinguals    = "#1f77b4",
-      translators   = "#ff7f0e",
-      interpreters  = "#2ca02c"
+      bilinguals   = "#1f77b4",
+      translators  = "#ff7f0e",
+      interpreters = "#2ca02c"
     ),
     name = "Group",
     labels = c("Bilinguals", "Translators", "Interpreters")
   ) +
-  scale_y_continuous(
-    breaks = seq(-20, 20, 10),
-    limits = c(-20, 20)
-  ) +
-  labs(
-    x = "Age (years)",
-    y = "Corrected BAG",
-    title = "Corrected BAG by age"
-  ) +
-  theme_minimal(base_size = 16) +
-  theme(
-    legend.position = "right",
-    plot.title = element_text(face = "bold", size = 16),
-    axis.title = element_text(size = 16),
-    axis.text  = element_text(size = 14),
-    legend.title = element_text(size = 14),
-    legend.text  = element_text(size = 13)
-  )
+  scale_y_continuous(breaks = seq(-20, 20, 10), limits = c(-20, 20)) +
+  labs(x = "Age (years)", y = "Corrected BAG", title = "Corrected BAG by age") +
+  big_theme
 
-# Combine horizontally, shared legend
-combined_plot <- p_bag + p_delta +
+# Combine horizontally, shared legend, add A/B tags in upper-right of each panel
+p_bag  <- p_bag  + annotate("text", x = Inf, y = Inf, label = "A",
+                            hjust = 1.1, vjust = 1.2, size = 20, fontface = "bold")
+
+p_delta <- p_delta + annotate("text", x = Inf, y = Inf, label = "B",
+                              hjust = 1.8, vjust = 1.2, size = 20, fontface = "bold")  # bigger hjust -> more left
+
+combined_plot <- (p_bag + p_delta) +
   plot_layout(ncol = 2, guides = "collect") &
   theme(legend.position = "right")
 
 print(combined_plot)
 
-ggsave("Fig_BAG_horizontal_symm_scale.png",
+ggsave("E:/Bilingualism/Fig_BAG_horizontal_symm_scale_600dpi.png",
        combined_plot,
-       width = 10, height = 5, dpi = 300)
+       width = 12, height = 6, units = "in",
+       dpi = 600, bg = "white")
 ###############################################################################
 ###############################################################################
 # GRAPH 1: BAG violins (Uncorrected left, Corrected right) + ANOVA/Tukey
@@ -210,9 +208,9 @@ library(ggplot2)
 library(rstatix)
 library(ggpubr)
 
-df <- read_excel(".../brainpad_results.xlsx") %>%
-  mutate(group = factor(group, levels = c("bilinguals","translators","interpreters"))) %>%
+df <- read_excel("E:/Bilingualism/brainpad_results.xlsx") %>%
   mutate(
+    group = factor(group, levels = c("bilinguals","translators","interpreters")),
     BAG_uncorrected = Predicted_BAG_non_BC_Brainage,
     BAG_corrected   = delta_cv5_Predicted_age_non_BC_Brainage
   )
@@ -307,7 +305,7 @@ library(ggplot2)
 library(rstatix)
 library(ggpubr)
 
-df <- read_excel(".../brainpad_results.xlsx") %>%
+df <- read_excel("E:/Bilingualism/brainpad_results.xlsx")
   mutate(group = factor(group, levels = c("bilinguals","translators","interpreters")))
 
 my_cols <- c(
@@ -374,7 +372,7 @@ library(dplyr)
 library(readxl)
 
 # Read data (edit path if needed)
-df <- read_excel(".../brainpad_results.xlsx")
+df <- read_excel("C:/brainpad_results.xlsx")
 
 # Ensure group is ordered
 df <- df |>
@@ -459,7 +457,7 @@ library(readxl)
 library(rstatix)
 library(ggpubr)
 
-df <- read_excel(".../brainpad_results.xlsx") |>
+df <- read_excel("C:/brainpad_results.xlsx") |>
   mutate(
     group  = factor(group,
                     levels = c("bilinguals", "translators", "interpreters")),
@@ -527,7 +525,7 @@ library(emmeans)
 library(ggplot2)
 library(dplyr)
 
-df <- read_excel(".../brainpad_results.xlsx") |>
+df <- read_excel("C:/brainpad_results.xlsx") |>
   mutate(
     Gender = factor(Gender, levels = c("Female", "Male"))
   )
@@ -570,5 +568,4 @@ gender_slopes
 
 # Pairwise comparison of slopes (Female vs Male)
 pairs(gender_slopes)
-
 
