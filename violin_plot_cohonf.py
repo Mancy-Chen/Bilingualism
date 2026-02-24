@@ -13,7 +13,6 @@ sns.set_context("talk", font_scale=1.4)
 # CONFIG
 # ============================
 
-# Switch between non-bias-corrected and bias-corrected BAG
 USE_BIAS_CORRECTED = True  # True = use bias-corrected deltas; False = use raw predicted ages
 
 true_age_col = "Age"
@@ -21,9 +20,22 @@ group_col = "group"
 subj_col = "MRI code"  # Subject ID
 group_order = ["bilinguals", "translators", "interpreters"]
 
+# Exploratory/descriptive choices
+SHOW_ANOVA_ACROSS_MODELS_CORRECTION_IN_CONSOLE = True
+ANOVA_ACROSS_MODELS_METHOD = "fdr_bh"  # 'fdr_bh' or 'holm'
+
+ANNOT_FONTSIZE = 20
+
+# Choose which omnibus effect size to show above each model:
+# "f" (Cohen's f), "omega2", or "eta2"
+OMNIBUS_EFFECT_TO_PLOT = "f"
+
+# ============================
+# Paths / columns
+# ============================
+
 if USE_BIAS_CORRECTED:
-    # Bias-corrected results
-    merged_path = "/data/projects/CSC/code/Bilingualism/09_output_compare/brainpad_results.xlsx"
+    merged_path = ".../Bilingualism/09_output_compare/brainpad_results.xlsx"
     bag_cols = [
         "delta_cv5_Predicted_age_non_BC_Brainage",
         "delta_cv5_Predicted_age_non_BC_BrainageR",
@@ -32,7 +44,6 @@ if USE_BIAS_CORRECTED:
         "delta_cv5_Predicted_age_non_BC_BRAID_WM",
         "delta_cv5_Predicted_age_non_BC_BRAID_GM",
     ]
-
     pretty_names = {
         "delta_cv5_Predicted_age_non_BC_Brainage": "BrainAge",
         "delta_cv5_Predicted_age_non_BC_BrainageR": "BrainageR",
@@ -41,13 +52,10 @@ if USE_BIAS_CORRECTED:
         "delta_cv5_Predicted_age_non_BC_BRAID_WM": "BRAID WM",
         "delta_cv5_Predicted_age_non_BC_BRAID_GM": "BRAID GM",
     }
-
     fig_title = "Bias-corrected Brain Age Gap by Model and Group"
-    out_png = "/data/projects/CSC/code/Bilingualism/09_output_compare/brainage_violin_plot_6models_BC_CohenD.png"
-
+    out_png = ".../Bilingualism/09_output_compare/brainage_violin_plot_6models_BC_TukeyOnly_OmnibusEffect.png"
 else:
-    # Non-bias-corrected results
-    merged_path = "/data/projects/CSC/code/Bilingualism/09_output_compare/BILCZE_brainpad_results.xlsx"
+    merged_path = ".../Bilingualism/09_output_compare/BILCZE_brainpad_results.xlsx"
     bag_cols = [
         "Predicted_age_non_BC_Brainage",
         "Predicted_age_non_BC_BrainageR",
@@ -56,7 +64,6 @@ else:
         "Predicted_age_non_BC_BRAID_WM",
         "Predicted_age_non_BC_BRAID_GM",
     ]
-
     pretty_names = {
         "Predicted_age_non_BC_Brainage": "BrainAge",
         "Predicted_age_non_BC_BrainageR": "BrainageR",
@@ -65,15 +72,19 @@ else:
         "Predicted_age_non_BC_BRAID_WM": "BRAID WM",
         "Predicted_age_non_BC_BRAID_GM": "BRAID GM",
     }
-
     fig_title = "Brain Age Gap by Model and Group"
-    out_png = "/data/projects/CSC/code/Bilingualism/09_output_compare/brainage_violin_plot_6models_CohenD.png"
+    out_png = ".../Bilingualism/09_output_compare/brainage_violin_plot_6models_TukeyOnly_OmnibusEffect.png"
 
-# Multiple-comparison choices for the console stats
-ANOVA_ACROSS_MODELS_METHOD = "holm"   # 'holm' (FWER) or 'fdr_bh'
-PAIRS_ACROSS_MODELS_METHOD = "fdr_bh" # 'holm' or 'fdr_bh'
-
-ANNOT_FONTSIZE = 20  # font size for brackets and Cohen's d labels
+_alias_to_pretty = {
+    "Brainage": "BrainAge",
+    "BrainageR": "BrainageR",
+    "Deepbrainnet": "DeepBrainNet",
+    "Pyment": "Pyment",
+    "BRAID_WM": "BRAID WM",
+    "BRAID_GM": "BRAID GM",
+}
+desired_order_alias = ["Brainage", "BrainageR", "Deepbrainnet", "Pyment", "BRAID_WM", "BRAID_GM"]
+desired_pretty = [_alias_to_pretty[a] for a in desired_order_alias]
 
 # ============================
 # Load & reshape
@@ -88,35 +99,12 @@ df_long = df.melt(
     value_name="BrainAgeGap",
 )
 
-df_long["Model"] = (
-    df_long["Model"]
-    .str.replace(r"^BAG_", "", regex=True)
-    .map(pretty_names)
-)
-
+df_long["Model"] = df_long["Model"].map(pretty_names).fillna(df_long["Model"])
 df_long = df_long.dropna(subset=["BrainAgeGap", group_col, subj_col]).copy()
 df_long = df_long[df_long[group_col].isin(group_order)].copy()
 
-# desired model order
-_alias_to_pretty = {
-    "Brainage": "BrainAge",
-    "BrainageR": "BrainageR",
-    "Deepbrainnet": "DeepBrainNet",
-    "Pyment": "Pyment",
-    "BRAID_WM": "BRAID WM",
-    "BRAID_GM": "BRAID GM",
-    "Ours": "Our ML model",
-}
-desired_order_alias = [
-    "Brainage",
-    "BrainageR",
-    "Deepbrainnet",
-    "Pyment",
-    "BRAID_WM",
-    "BRAID_GM",
-    "Ours",
-]
-desired_pretty = [_alias_to_pretty[a] for a in desired_order_alias]
+df_long[group_col] = pd.Categorical(df_long[group_col], categories=group_order, ordered=True)
+
 present = set(df_long["Model"].unique())
 model_order = [m for m in desired_pretty if m in present]
 
@@ -125,18 +113,10 @@ model_order = [m for m in desired_pretty if m in present]
 # ============================
 
 print("\n=== Mixed-Effects Omnibus Test (Group × Model) ===")
-full = smf.mixedlm(
-    "BrainAgeGap ~ C(group)*C(Model)",
-    data=df_long,
-    groups=df_long[subj_col],
-)
+full = smf.mixedlm("BrainAgeGap ~ C(group)*C(Model)", data=df_long, groups=df_long[subj_col])
 fit_full = full.fit(reml=False)
 
-reduced = smf.mixedlm(
-    "BrainAgeGap ~ C(group) + C(Model)",
-    data=df_long,
-    groups=df_long[subj_col],
-)
+reduced = smf.mixedlm("BrainAgeGap ~ C(group) + C(Model)", data=df_long, groups=df_long[subj_col])
 fit_red = reduced.fit(reml=False)
 
 LR = 2 * (fit_full.llf - fit_red.llf)
@@ -147,26 +127,69 @@ print("\nFull model summary:")
 print(fit_full.summary())
 
 # ============================
-# Per-model ANOVA + Tukey
+# Helpers: omnibus effect sizes for 1-way ANOVA (3 groups)
+# ============================
+
+def anova_effect_sizes_oneway(sub, groups):
+    """Return eta2, omega2, and Cohen's f for one-way ANOVA."""
+    vals_by_g = []
+    for g in groups:
+        v = sub.loc[sub[group_col] == g, "BrainAgeGap"].dropna().to_numpy(float)
+        if len(v) > 0:
+            vals_by_g.append(v)
+    k = len(vals_by_g)
+    if k < 2:
+        return dict(eta2=np.nan, omega2=np.nan, f=np.nan)
+
+    all_vals = np.concatenate(vals_by_g)
+    N = len(all_vals)
+    if N <= k:
+        return dict(eta2=np.nan, omega2=np.nan, f=np.nan)
+
+    grand = all_vals.mean()
+
+    ss_between = 0.0
+    ss_within = 0.0
+    for v in vals_by_g:
+        ss_between += len(v) * (v.mean() - grand) ** 2
+        ss_within += ((v - v.mean()) ** 2).sum()
+
+    ss_total = ss_between + ss_within
+    df_between = k - 1
+    df_within = N - k
+    ms_within = ss_within / df_within if df_within > 0 else np.nan
+
+    eta2 = ss_between / ss_total if ss_total > 0 else np.nan
+    omega2 = (
+        (ss_between - df_between * ms_within) / (ss_total + ms_within)
+        if np.isfinite(ms_within) and (ss_total + ms_within) > 0
+        else np.nan
+    )
+    f = np.sqrt(eta2 / (1 - eta2)) if np.isfinite(eta2) and eta2 < 1 else np.nan
+
+    return dict(eta2=eta2, omega2=omega2, f=f)
+
+# ============================
+# Per-model ANOVA + Tukey (within-model only)
 # ============================
 
 def safe_groups_data(sub, groups):
-    return [
-        sub.loc[sub[group_col] == g, "BrainAgeGap"].dropna()
-        for g in groups
-        if g in set(sub[group_col])
-    ]
+    return [sub.loc[sub[group_col] == g, "BrainAgeGap"].dropna() for g in groups if g in set(sub[group_col])]
 
 anova_pvals = {}
-tukey_pvals_by_model = {}
+tukey_by_model = {}
+omnibus_by_model = {}  # model -> dict(eta2, omega2, f)
 
-print("\n=== Per-Model One-Way ANOVA & Tukey ===")
+print("\n=== Per-Model One-Way ANOVA & Tukey (within-model only) ===")
 for m in model_order:
     sub = df_long[df_long["Model"] == m].copy()
     present_groups = [g for g in group_order if g in set(sub[group_col])]
     if len(present_groups) < 2:
         print(f"{m}: <2 groups present, skipping.")
         continue
+
+    # omnibus effect sizes
+    omnibus_by_model[m] = anova_effect_sizes_oneway(sub, present_groups)
 
     g_dat = safe_groups_data(sub, present_groups)
     if sum(len(gv) > 0 for gv in g_dat) < 2:
@@ -175,67 +198,28 @@ for m in model_order:
 
     f_stat, p_val = f_oneway(*g_dat)
     anova_pvals[m] = float(p_val)
-    print(f"{m}: ANOVA p = {p_val:.6g}")
+    print(f"\n{m}: ANOVA p = {p_val:.6g} | eta2={omnibus_by_model[m]['eta2']:.3f} "
+          f"omega2={omnibus_by_model[m]['omega2']:.3f} f={omnibus_by_model[m]['f']:.3f}")
 
-    tk = pairwise_tukeyhsd(
-        endog=sub["BrainAgeGap"],
-        groups=sub[group_col],
-        alpha=0.05,
-    )
+    tk = pairwise_tukeyhsd(endog=sub["BrainAgeGap"], groups=sub[group_col], alpha=0.05)
     print(tk.summary())
 
     pairs = []
     for row in tk._results_table.data[1:]:
         g1, g2, meandiff, p_adj, lower, upper, reject = row
         g1, g2 = str(g1), str(g2)
-        if g1 in group_order and g2 in group_order:
-            pairs.append((g1, g2, float(p_adj)))
-    tukey_pvals_by_model[m] = pairs
+        if (g1 in group_order) and (g2 in group_order):
+            pairs.append((g1, g2, float(p_adj), bool(reject)))
+    tukey_by_model[m] = pairs
 
-# cross-model corrections (console only)
-if anova_pvals:
+# Optional: across-model correction for the 6 ANOVA p-values (console only)
+if SHOW_ANOVA_ACROSS_MODELS_CORRECTION_IN_CONSOLE and anova_pvals:
     models_list = list(anova_pvals.keys())
     anova_raw = [anova_pvals[m] for m in models_list]
-    rej_anova, p_anova_corr, _, _ = multipletests(
-        anova_raw, method=ANOVA_ACROSS_MODELS_METHOD
-    )
-    anova_p_corr = dict(zip(models_list, p_anova_corr))
-else:
-    anova_p_corr = {}
-
-all_keys, all_p = [], []
-for m, pairs in tukey_pvals_by_model.items():
-    for (g1, g2, p) in pairs:
-        all_keys.append((m, g1, g2))
-        all_p.append(p)
-
-if all_p:
-    rej_pairs, p_pairs_corr, _, _ = multipletests(
-        all_p, method=PAIRS_ACROSS_MODELS_METHOD
-    )
-    pair_p_corr = dict(zip(all_keys, p_pairs_corr))
-    pair_reject = dict(zip(all_keys, rej_pairs))
-else:
-    pair_p_corr, pair_reject = {}, {}
-
-# ============================
-# Effect size: Cohen's d
-# ============================
-
-def cohen_d(x, y):
-    x = np.asarray(x, dtype=float)
-    y = np.asarray(y, dtype=float)
-    x = x[~np.isnan(x)]
-    y = y[~np.isnan(y)]
-    n1, n2 = len(x), len(y)
-    if n1 < 2 or n2 < 2:
-        return np.nan
-    m1, m2 = x.mean(), y.mean()
-    s1, s2 = x.std(ddof=1), y.std(ddof=1)
-    sp = np.sqrt(((n1 - 1) * s1**2 + (n2 - 1) * s2**2) / (n1 + n2 - 2))
-    if sp == 0:
-        return np.nan
-    return (m1 - m2) / sp
+    rej, p_corr, _, _ = multipletests(anova_raw, method=ANOVA_ACROSS_MODELS_METHOD)
+    print(f"\n=== ANOVA across-model correction ({ANOVA_ACROSS_MODELS_METHOD}) [console only] ===")
+    for m, pr, pc, r in zip(models_list, anova_raw, p_corr, rej):
+        print(f"{m:>12s}  p_raw={pr:.6g}  p_corr={pc:.6g}  reject={bool(r)}")
 
 # ============================
 # Plot helpers
@@ -249,23 +233,16 @@ def hue_pos(x_index, hue_index, n_hue, width=0.8):
 
 def add_bracket(ax, x1, x2, y, h, text):
     ax.plot([x1, x1, x2, x2], [y, y + h, y + h, y], c="k", lw=1.0, clip_on=False)
-    ax.text(
-        (x1 + x2) / 2,
-        y + h,
-        text,
-        ha="center",
-        va="bottom",
-        fontsize=ANNOT_FONTSIZE,
-        clip_on=False,
-    )
+    ax.text((x1 + x2) / 2, y + h, text, ha="center", va="bottom",
+            fontsize=ANNOT_FONTSIZE, clip_on=False)
     return y + h
 
 # ============================
-# Violin plot with brackets + Cohen's d
+# Violin plot with Tukey brackets + omnibus effect size label
 # ============================
 
 plt.figure(figsize=(22, 10))
-vi = sns.violinplot(
+sns.violinplot(
     data=df_long,
     x="Model",
     y="BrainAgeGap",
@@ -282,6 +259,7 @@ ax.set_ylabel("Brain Age Gap (Predicted − Age)")
 ax.set_title(fig_title)
 ax.legend(title=group_col, bbox_to_anchor=(1.02, 1), loc="upper left")
 
+# extend y-limits for annotations
 ymin, ymax = ax.get_ylim()
 ax.set_ylim(ymin, ymax * 1.35)
 
@@ -292,34 +270,25 @@ for mi, model in enumerate(model_order):
     if sub.empty:
         continue
 
-    # Cohen's d: bilinguals vs translators+interpreters
-    x_bi = sub.loc[sub[group_col] == "bilinguals", "BrainAgeGap"].dropna()
-    x_prof = sub.loc[
-        sub[group_col].isin(["translators", "interpreters"]), "BrainAgeGap"
-    ].dropna()
-    d_val = cohen_d(x_bi, x_prof)
+    # Omnibus effect size label (3-group)
+    eff = omnibus_by_model.get(model, {})
+    eff_val = eff.get(OMNIBUS_EFFECT_TO_PLOT, np.nan)
 
-    # vertical span
-    yvals = sub["BrainAgeGap"].values
+    # vertical span for bracket placement
+    yvals = sub["BrainAgeGap"].to_numpy(float)
     ymax_m = np.nanmax(yvals) if yvals.size else 0.0
     ymin_m = np.nanmin(yvals) if yvals.size else 0.0
-    span = (
-        (ymax_m - ymin_m)
-        if np.isfinite(ymax_m - ymin_m) and (ymax_m - ymin_m) > 0
-        else 1.0
-    )
+    span = (ymax_m - ymin_m) if np.isfinite(ymax_m - ymin_m) and (ymax_m - ymin_m) > 0 else 1.0
     base_y = ymax_m + 0.05 * span
     step_h = 0.06 * span
     bar_h = 0.01 * span
 
-    # brackets for significant Tukey contrasts (after global correction)
+    # brackets: significant Tukey contrasts WITHIN model only
     used_levels = []
-    pairs = tukey_pvals_by_model.get(model, [])
-    for (g1, g2, p_tuk) in pairs:
-        key = (model, g1, g2)
-        if not pair_reject.get(key, False):
+    pairs = tukey_by_model.get(model, [])
+    for (g1, g2, p_tuk_adj, reject) in pairs:
+        if not reject:
             continue
-        p_corr = pair_p_corr.get(key, p_tuk)
 
         i1 = group_order.index(g1)
         i2 = group_order.index(g2)
@@ -337,20 +306,21 @@ for mi, model in enumerate(model_order):
         used_levels.append((left, right, level))
 
         y = base_y + level * step_h
-        add_bracket(ax, x1, x2, y, h=bar_h, text=p_to_stars(p_corr))
+        add_bracket(ax, x1, x2, y, h=bar_h, text=p_to_stars(p_tuk_adj))
 
-    # Cohen's d label above highest bracket
-    if np.isfinite(d_val):
+    # effect size label above the highest bracket
+    if np.isfinite(eff_val):
         max_level = max([lvl for _, _, lvl in used_levels], default=-1)
-        d_y = base_y + (max_level + 1.8) * step_h
-        ax.text(
-            mi,
-            d_y,
-            f"d = {d_val:.2f}",
-            ha="center",
-            va="bottom",
-            fontsize=ANNOT_FONTSIZE,
-        )
+        eff_y = base_y + (max_level + 1.8) * step_h
+
+        if OMNIBUS_EFFECT_TO_PLOT == "f":
+            label = f"f = {eff_val:.2f}"
+        elif OMNIBUS_EFFECT_TO_PLOT == "omega2":
+            label = f"ω² = {eff_val:.2f}"
+        else:
+            label = f"η² = {eff_val:.2f}"
+
+        ax.text(mi, eff_y, label, ha="center", va="bottom", fontsize=ANNOT_FONTSIZE)
 
 plt.tight_layout()
 plt.savefig(out_png, dpi=150, bbox_inches="tight")
