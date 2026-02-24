@@ -20,10 +20,10 @@ from scipy.stats import pearsonr, spearmanr, norm
 from statsmodels.stats.multitest import multipletests
 
 # ---------------------- Paths & constants ----------------------
-BRAINPAD_XLSX = Path("/data/projects/CSC/code/Bilingualism/09_output_compare/brainpad_results_radiomics.xlsx")
-ROI_LONG_CSV  = Path("/data/projects/CSC/code/Bilingualism/10_Fastsurfer/roi_volumes/DKTatlas_aseg_deep_withCC_long.csv")
-TEMPLATE_SEG  = Path("/data/projects/CSC/code/Bilingualism/10_Fastsurfer/my_fastsurfer_analysis_n4/sub-3777B/sub-3777B/mri/aparc.DKTatlas+aseg.deep.withCC.mgz")
-OUTPUT_DIR    = Path("/data/projects/CSC/code/Bilingualism/09_output_compare/roi_heatmaps_cv5_resid_FDR_n4")
+BRAINPAD_XLSX = Path(".../Bilingualism/09_output_compare/brainpad_results_radiomics.xlsx")
+ROI_LONG_CSV  = Path(".../Bilingualism/10_Fastsurfer/roi_volumes/DKTatlas_aseg_deep_withCC_long.csv")
+TEMPLATE_SEG  = Path(".../Bilingualism/10_Fastsurfer/my_fastsurfer_analysis_n4/sub-3777B/sub-3777B/mri/aparc.DKTatlas+aseg.deep.withCC.mgz")
+OUTPUT_DIR    = Path(".../Bilingualism/09_output_compare/roi_heatmaps_cv5_resid_FDR_n4")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Use only CV5 bias-corrected deltas
