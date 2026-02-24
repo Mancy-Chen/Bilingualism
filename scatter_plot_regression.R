@@ -8,7 +8,7 @@ library(ggplot2)
 library(broom)
 
 # Read your Excel file (note the forward slashes)
-df <- read_excel("C:/brainpad_results.xlsx")
+df <- read_excel(".../brainpad_results.xlsx")
 
 # Make sure the grouping variable is a factor and ordered properly
 df <- df |>
@@ -210,7 +210,7 @@ library(ggplot2)
 library(rstatix)
 library(ggpubr)
 
-df <- read_excel("C:/brainpad_results.xlsx") %>%
+df <- read_excel(".../brainpad_results.xlsx") %>%
   mutate(group = factor(group, levels = c("bilinguals","translators","interpreters"))) %>%
   mutate(
     BAG_uncorrected = Predicted_BAG_non_BC_Brainage,
@@ -307,7 +307,7 @@ library(ggplot2)
 library(rstatix)
 library(ggpubr)
 
-df <- read_excel("C:/brainpad_results.xlsx") %>%
+df <- read_excel(".../brainpad_results.xlsx") %>%
   mutate(group = factor(group, levels = c("bilinguals","translators","interpreters")))
 
 my_cols <- c(
@@ -374,7 +374,7 @@ library(dplyr)
 library(readxl)
 
 # Read data (edit path if needed)
-df <- read_excel("C:/brainpad_results.xlsx")
+df <- read_excel(".../brainpad_results.xlsx")
 
 # Ensure group is ordered
 df <- df |>
@@ -459,7 +459,7 @@ library(readxl)
 library(rstatix)
 library(ggpubr)
 
-df <- read_excel("C:/brainpad_results.xlsx") |>
+df <- read_excel(".../brainpad_results.xlsx") |>
   mutate(
     group  = factor(group,
                     levels = c("bilinguals", "translators", "interpreters")),
@@ -527,7 +527,7 @@ library(emmeans)
 library(ggplot2)
 library(dplyr)
 
-df <- read_excel("C:/brainpad_results.xlsx") |>
+df <- read_excel(".../brainpad_results.xlsx") |>
   mutate(
     Gender = factor(Gender, levels = c("Female", "Male"))
   )
@@ -570,4 +570,5 @@ gender_slopes
 
 # Pairwise comparison of slopes (Female vs Male)
 pairs(gender_slopes)
+
 
