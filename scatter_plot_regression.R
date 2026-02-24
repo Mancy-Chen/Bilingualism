@@ -110,18 +110,19 @@ delta_slopes
 
 pairs(delta_slopes)
 ###############################################################################
-# Scatter plot with two subplots (raw/corrected BAG) + bigger fonts + A/B tags (upper right)
+# Scatter plot with two subplots (raw/corrected BAG) + bigger fonts + A/B tags
+# + group-colored, slightly faded 95% CI bands
+
 library(readxl)
 library(dplyr)
 library(ggplot2)
-library(emmeans)
 library(patchwork)
 
-# Load data + set factor order (edit path if needed)
+# Load data + set factor order
 df <- read_excel("E:/Bilingualism/brainpad_results.xlsx") %>%
   mutate(group = factor(group, levels = c("bilinguals", "translators", "interpreters")))
 
-# Optional but recommended: remove rows with missing values used in plots/models
+# Remove rows with missing values used in plots/models
 df_plot <- df %>%
   filter(
     !is.na(Age),
@@ -130,11 +131,14 @@ df_plot <- df %>%
     !is.na(delta_cv5_Predicted_age_non_BC_Brainage)
   )
 
-# Models
-lm_bag   <- lm(Predicted_BAG_non_BC_Brainage ~ Age * group, data = df_plot)
-lm_delta <- lm(delta_cv5_Predicted_age_non_BC_Brainage ~ Age * group, data = df_plot)
+# Colors
+my_cols <- c(
+  bilinguals   = "#1f77b4",
+  translators  = "#ff7f0e",
+  interpreters = "#2ca02c"
+)
 
-# Bigger font theme (adjust sizes as you like)
+# Bigger font theme
 big_theme <- theme_minimal(base_size = 20) +
   theme(
     plot.title   = element_text(face = "bold", size = 22),
@@ -144,47 +148,39 @@ big_theme <- theme_minimal(base_size = 20) +
     legend.text  = element_text(size = 17)
   )
 
-# Plot 1: Raw BAG
-p_bag <- ggplot(df_plot, aes(x = Age, y = Predicted_BAG_non_BC_Brainage, color = group)) +
+# Plot 1: Raw BAG (with colored, faded 95% CI)
+p_bag <- ggplot(df_plot, aes(x = Age, y = Predicted_BAG_non_BC_Brainage, color = group, fill = group)) +
   geom_point(alpha = 0.7, size = 3) +
-  geom_smooth(method = "lm", se = TRUE, linewidth = 1.4) +
+  geom_smooth(method = "lm", se = TRUE, level = 0.95, linewidth = 1.4, alpha = 0.20) +
   scale_color_manual(
-    values = c(
-      bilinguals   = "#1f77b4",
-      translators  = "#ff7f0e",
-      interpreters = "#2ca02c"
-    ),
+    values = my_cols,
     name = "Group",
     labels = c("Bilinguals", "Translators", "Interpreters")
   ) +
+  scale_fill_manual(values = my_cols, guide = "none") +   # keep legend only once (lines/points)
   scale_y_continuous(breaks = seq(-20, 20, 10), limits = c(-20, 20)) +
   labs(x = "Age (years)", y = "Raw BAG", title = "Raw BAG by age") +
-  big_theme
+  big_theme +
+  annotate("text", x = Inf, y = Inf, label = "A",
+           hjust = 1.1, vjust = 1.2, size = 20, fontface = "bold")
 
-# Plot 2: Corrected BAG
-p_delta <- ggplot(df_plot, aes(x = Age, y = delta_cv5_Predicted_age_non_BC_Brainage, color = group)) +
+# Plot 2: Corrected BAG (with colored, faded 95% CI)
+p_delta <- ggplot(df_plot, aes(x = Age, y = delta_cv5_Predicted_age_non_BC_Brainage, color = group, fill = group)) +
   geom_point(alpha = 0.7, size = 3) +
-  geom_smooth(method = "lm", se = TRUE, linewidth = 1.4) +
+  geom_smooth(method = "lm", se = TRUE, level = 0.95, linewidth = 1.4, alpha = 0.20) +
   scale_color_manual(
-    values = c(
-      bilinguals   = "#1f77b4",
-      translators  = "#ff7f0e",
-      interpreters = "#2ca02c"
-    ),
+    values = my_cols,
     name = "Group",
     labels = c("Bilinguals", "Translators", "Interpreters")
   ) +
+  scale_fill_manual(values = my_cols, guide = "none") +
   scale_y_continuous(breaks = seq(-20, 20, 10), limits = c(-20, 20)) +
   labs(x = "Age (years)", y = "Corrected BAG", title = "Corrected BAG by age") +
-  big_theme
+  big_theme +
+  annotate("text", x = Inf, y = Inf, label = "B",
+           hjust = 1.8, vjust = 1.2, size = 20, fontface = "bold")
 
-# Combine horizontally, shared legend, add A/B tags in upper-right of each panel
-p_bag  <- p_bag  + annotate("text", x = Inf, y = Inf, label = "A",
-                            hjust = 1.1, vjust = 1.2, size = 20, fontface = "bold")
-
-p_delta <- p_delta + annotate("text", x = Inf, y = Inf, label = "B",
-                              hjust = 1.8, vjust = 1.2, size = 20, fontface = "bold")  # bigger hjust -> more left
-
+# Combine, shared legend
 combined_plot <- (p_bag + p_delta) +
   plot_layout(ncol = 2, guides = "collect") &
   theme(legend.position = "right")
@@ -364,15 +360,12 @@ print(p_age)
 
 ###############################################################################
 # Chronological age vs predicted age
-# Chronological age vs predicted age (two panels with identical x/y scales)
+# Two panels, identical x/y scales, larger font, shared legend, + 95% CI bands
 
 library(ggplot2)
 library(patchwork)
 library(dplyr)
 library(readxl)
-
-# Read data (edit path if needed)
-df <- read_excel("C:/brainpad_results.xlsx")
 
 # Ensure group is ordered
 df <- df |>
@@ -385,12 +378,17 @@ df <- df |>
     Predicted_Age_corrected   = Age + delta_cv5_Predicted_age_non_BC_Brainage
   )
 
+# Recommended: filter rows used in plotting
+df_plot <- df |>
+  filter(
+    !is.na(Age), !is.na(group),
+    !is.na(Predicted_Age_uncorrected),
+    !is.na(Predicted_Age_corrected)
+  )
+
 # Shared axis limits across both panels
-x_lim <- range(df$Age, na.rm = TRUE)
-y_lim <- range(
-  c(df$Predicted_Age_uncorrected, df$Predicted_Age_corrected),
-  na.rm = TRUE
-)
+x_lim <- range(df_plot$Age, na.rm = TRUE)
+y_lim <- range(c(df_plot$Predicted_Age_uncorrected, df_plot$Predicted_Age_corrected), na.rm = TRUE)
 
 # Colors
 my_cols <- c(
@@ -399,53 +397,64 @@ my_cols <- c(
   interpreters = "#2ca02c"
 )
 
-# Uncorrected
-p3 <- ggplot(df, aes(x = Age, y = Predicted_Age_uncorrected, color = group)) +
-  geom_point() +
-  geom_smooth(method = "lm", se = FALSE, linewidth = 1.4) +
-  geom_abline(slope = 1, intercept = 0, linetype = "dashed", linewidth = 1.4) +
-  scale_color_manual(values = my_cols) +
-  scale_x_continuous(limits = x_lim) +
-  scale_y_continuous(limits = y_lim) +
-  coord_fixed(ratio = 1) +  # same units on x and y for both panels
-  labs(
-    x = "Chronological Age",
-    y = "Predicted Brain Age (uncorrected)",
-    title = "Uncorrected",
-    color = "Group"
-  ) +
-  theme_minimal()
+# Bigger font theme
+big_theme <- theme_minimal(base_size = 20) +
+  theme(
+    plot.title   = element_text(face = "bold", size = 22),
+    axis.title   = element_text(size = 20),
+    axis.text    = element_text(size = 18),
+    legend.title = element_text(size = 18),
+    legend.text  = element_text(size = 17)
+  )
 
-# Bias-corrected
-p4 <- ggplot(df, aes(x = Age, y = Predicted_Age_corrected, color = group)) +
-  geom_point() +
-  geom_smooth(method = "lm", se = FALSE, linewidth = 1.4) +
-  geom_abline(slope = 1, intercept = 0, linetype = "dashed", linewidth = 1.4) +
-  scale_color_manual(values = my_cols) +
+# Uncorrected (with 95% CI)
+p3 <- ggplot(df_plot, aes(x = Age, y = Predicted_Age_uncorrected, color = group, fill = group)) +
+  geom_point(alpha = 0.75, size = 2.8) +
+  geom_smooth(method = "lm", se = TRUE, level = 0.95, linewidth = 1.4, alpha = 0.20) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", linewidth = 1.4, color = "black") +
+  scale_color_manual(values = my_cols, name = "Group",
+                     labels = c("Bilinguals", "Translators", "Interpreters")) +
+  scale_fill_manual(values = my_cols, guide = "none") +
   scale_x_continuous(limits = x_lim) +
   scale_y_continuous(limits = y_lim) +
   coord_fixed(ratio = 1) +
   labs(
-    x = "Chronological Age",
-    y = "Predicted Brain Age (bias-corrected)",
-    title = "Bias-corrected",
-    color = "Group"
+    x = "Chronological Age (years)",
+    y = "Predicted Brain Age (uncorrected)",
+    title = "Uncorrected"
   ) +
-  theme_minimal()
+  big_theme
 
-# Combine with one shared legend on the right
+# Bias-corrected (with 95% CI)
+p4 <- ggplot(df_plot, aes(x = Age, y = Predicted_Age_corrected, color = group, fill = group)) +
+  geom_point(alpha = 0.75, size = 2.8) +
+  geom_smooth(method = "lm", se = TRUE, level = 0.95, linewidth = 1.4, alpha = 0.20) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", linewidth = 1.4, color = "black") +
+  scale_color_manual(values = my_cols, name = "Group",
+                     labels = c("Bilinguals", "Translators", "Interpreters")) +
+  scale_fill_manual(values = my_cols, guide = "none") +
+  scale_x_continuous(limits = x_lim) +
+  scale_y_continuous(limits = y_lim) +
+  coord_fixed(ratio = 1) +
+  labs(
+    x = "Chronological Age (years)",
+    y = "Predicted Brain Age (bias-corrected)",
+    title = "Bias-corrected"
+  ) +
+  big_theme
+
+# Combine with shared legend on the right
 combined <- (p3 + p4) +
   plot_layout(ncol = 2, guides = "collect") &
   theme(legend.position = "right")
 
 print(combined)
 
-# Save
-ggsave(
-  "ChronAge_vs_PredAge_combined_shared_legend_right.png",
-  combined, width = 12, height = 5, dpi = 300
-)
-
+# High-res export
+ggsave("E:/Bilingualism/ChronAge_vs_PredAge_combined_shared_legend_right_600dpi.png",
+       combined,
+       width = 12, height = 6, units = "in",
+       dpi = 600, bg = "white")
 
 ########################################################################################
 # Gender difference
@@ -457,7 +466,7 @@ library(readxl)
 library(rstatix)
 library(ggpubr)
 
-df <- read_excel("C:/brainpad_results.xlsx") |>
+df <- read_excel("E:/Bilingualism/brainpad_results.xlsx") |>
   mutate(
     group  = factor(group,
                     levels = c("bilinguals", "translators", "interpreters")),
@@ -520,38 +529,61 @@ p_bag_violin +
   )
 
 ################################################################################
-# Gender difference for whole group
-library(emmeans)
-library(ggplot2)
-library(dplyr)
+# Gender difference for whole group (bigger font + colorful faded 95% CI + 600 dpi save)
 
-df <- read_excel("C:/brainpad_results.xlsx") |>
-  mutate(
-    Gender = factor(Gender, levels = c("Female", "Male"))
+library(readxl)
+library(dplyr)
+library(ggplot2)
+
+df <- read_excel("E:/Bilingualism/brainpad_results.xlsx") |>
+  mutate(Gender = factor(Gender, levels = c("Female", "Male"))) |>
+  filter(!is.na(Age),
+         !is.na(Gender),
+         !is.na(delta_cv5_Predicted_age_non_BC_Brainage))
+
+# Bigger font theme
+big_theme <- theme_minimal(base_size = 20) +
+  theme(
+    plot.title   = element_text(face = "bold", size = 22),
+    axis.title   = element_text(size = 20),
+    axis.text    = element_text(size = 18),
+    legend.title = element_text(size = 18),
+    legend.text  = element_text(size = 17)
   )
 
 p_gender_age <- ggplot(
   df,
   aes(x = Age,
       y = delta_cv5_Predicted_age_non_BC_Brainage,
-      color = Gender)
+      color = Gender,
+      fill  = Gender)   # <- enables colored CI ribbons
 ) +
-  geom_point(alpha = 0.7, size = 2.5) +
-  geom_smooth(method = "lm", se = TRUE, linewidth = 1.2) +
+  geom_point(alpha = 0.7, size = 2.8) +
+  geom_smooth(method = "lm", se = TRUE, level = 0.95, linewidth = 1.2, alpha = 0.20) +
   geom_hline(yintercept = 0, linetype = "dashed") +
   scale_color_manual(
     values = c("Female" = "#F8766D",
                "Male"   = "#00BFC4"),
     name = "Gender"
   ) +
+  scale_fill_manual(
+    values = c("Female" = "#F8766D",
+               "Male"   = "#00BFC4"),
+    guide = "none"  # keep legend clean (only lines/points)
+  ) +
   labs(
     x = "Age (years)",
     y = "Corrected BAG (years)",
-    title = "Age–corrected BAG relationship by gender (all groups combined)"
+    title = "Age–corrected BAG relationship by gender"
   ) +
-  theme_minimal(base_size = 16)
+  big_theme
 
 print(p_gender_age)
+
+ggsave("E:/Bilingualism/Gender_Age_CorrectedBAG_600dpi.png",
+       p_gender_age,
+       width = 8, height = 6, units = "in",
+       dpi = 600, bg = "white")
 
 # OLS model with Age × Gender interaction (all groups pooled)
 lm_gender <- lm(
