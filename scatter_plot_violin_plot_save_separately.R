@@ -5,6 +5,17 @@
 # Shared legend on the right
 ###############################################################################
 
+install.packages(c(
+  "readxl",
+  "dplyr",
+  "tidyr",
+  "ggplot2",
+  "rstatix",
+  "ggpubr",
+  "patchwork"
+))
+
+
 library(readxl)
 library(dplyr)
 library(tidyr)
@@ -76,7 +87,7 @@ tukey_bag_sig <- df_long %>%
   add_xy_position(x = "group", fun = "max", step.increase = step_inc) %>%
   mutate(
     y.position = y.position + lift_frac * rng,
-    p.label = p_format(p.adj, digits = 3)
+    p.label = ifelse(p.adj < 0.001, "p < 0.001", sprintf("p = %.3f", p.adj))
   )
 
 # -----------------------------------------------------------------------------
@@ -144,7 +155,7 @@ p_unc_violin <- ggplot(df_unc, aes(x = group, y = BAG, fill = group)) +
   labs(
     x = "Group",
     y = "BAG (years)",
-    title = "Uncorrected BAG"
+    title = "Group distribution of BAG"
   ) +
   big_theme +
   theme(
@@ -152,8 +163,8 @@ p_unc_violin <- ggplot(df_unc, aes(x = group, y = BAG, fill = group)) +
   ) +
   annotate(
     "text",
-    x = Inf, y = Inf, label = "A",
-    hjust = 1.1, vjust = 1.2,
+    x = -Inf, y = Inf, label = "A",
+    hjust = -0.3, vjust = 1.2,
     size = 10, fontface = "bold"
   )
 
@@ -185,13 +196,13 @@ p_unc_scatter <- ggplot(
   labs(
     x = "Age (years)",
     y = "Uncorrected BAG",
-    title = "Uncorrected BAG by age"
+    title = "Linear association between age and BAG"
   ) +
   big_theme +
   annotate(
     "text",
-    x = Inf, y = Inf, label = "B",
-    hjust = 1.1, vjust = 1.2,
+    x = -Inf, y = Inf, label = "B",
+    hjust = -0.3, vjust = 1.2,
     size = 10, fontface = "bold"
   )
 
@@ -225,7 +236,7 @@ p_cor_violin <- ggplot(df_cor, aes(x = group, y = BAG, fill = group)) +
   labs(
     x = "Group",
     y = "BAG (years)",
-    title = "Corrected BAG"
+    title = "Group distribution of BAG′"
   ) +
   big_theme +
   theme(
@@ -233,11 +244,10 @@ p_cor_violin <- ggplot(df_cor, aes(x = group, y = BAG, fill = group)) +
   ) +
   annotate(
     "text",
-    x = Inf, y = Inf, label = "A",
-    hjust = 1.1, vjust = 1.2,
+    x = -Inf, y = Inf, label = "A",
+    hjust = -0.3, vjust = 1.2,
     size = 10, fontface = "bold"
   )
-
 # -----------------------------------------------------------------------------
 # 4) CORRECTED SCATTER (B)
 # -----------------------------------------------------------------------------
@@ -266,13 +276,13 @@ p_cor_scatter <- ggplot(
   labs(
     x = "Age (years)",
     y = "Corrected BAG",
-    title = "Corrected BAG by age"
+    title = "Linear association between age and BAG′"
   ) +
   big_theme +
   annotate(
     "text",
-    x = Inf, y = Inf, label = "B",
-    hjust = 1.1, vjust = 1.2,
+    x = -Inf, y = Inf, label = "B",
+    hjust = -0.3, vjust = 1.2,
     size = 10, fontface = "bold"
   )
 
