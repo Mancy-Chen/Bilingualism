@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# R
+.Rhistory
+.RData
+.Rproj.user/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Derived participant-level input data: keep local until sharing is approved
+input/*.xlsx
+input/*.xls
+input/*.csv
+input/*.mgz
+input/*.nii
+input/*.nii.gz
+!input/README.md
+
+# Generated analysis outputs
+output/*
+!output/README.md
