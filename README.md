@@ -14,45 +14,46 @@ This study examines MRI-derived brain-age measures in three mutually exclusive l
 
 Final analytic sample: **N = 105**.
 
-Six pretrained brain-age models were evaluated. The primary brain-age outcome is the age-bias-corrected brain age gap. The repository contains code for five-fold cross-validated age-bias correction, six-model screening, BrainAge-specific age–BAG analyses, figure generation, and exploratory ROI-wise structure–brain-age analyses.
+Six pretrained brain-age models were evaluated. The primary brain-age outcome is the five-fold cross-validated age-bias-corrected brain age gap. The repository contains code for cross-validated age-bias correction, six-model screening, BrainAge-specific age–BAG analyses, figure generation, and exploratory ROI-wise structure–brain-age analyses.
 
-## BAG notation and variable names
+## Brain-age notation and variable names
 
-To make the three BAG quantities visually distinct, the revised manuscript and repository use the same terminology:
+To keep predicted age, uncorrected BAG, and corrected BAG visually distinct, the cleaned reproducibility dataset uses three variable types:
 
-- **BAG_raw**: uncorrected brain age gap = predicted brain age − chronological age
-- **BAG_bias**: predicted linear age-bias component
-- **BAG_corr**: age-bias-corrected brain age gap = BAG_raw − BAG_bias
+- **PredAge**: predicted brain age in years
+- **BAG_uncorr**: uncorrected brain age gap = predicted brain age − chronological age
+- **BAG_corr**: five-fold cross-validated age-bias-corrected brain age gap
 
-The Excel dataset uses model-specific variable names of the form:
+The age-bias term used to obtain `BAG_corr` is an intermediate quantity estimated within each training fold. It is not stored in the main subject-level analysis table because it is not used by downstream statistical analyses. The fold-specific intercept and age-slope parameters can be written separately by `age_bias_correction_cv5.py`.
+
+For each of the six models, the Excel file contains:
 
 ```text
-BAG_raw_BrainAge
-BAG_bias_BrainAge
-BAG_corr_BrainAge
-
-BAG_raw_BrainAgeR
-BAG_bias_BrainAgeR
-BAG_corr_BrainAgeR
-
-BAG_raw_DeepBrainNet
-BAG_bias_DeepBrainNet
-BAG_corr_DeepBrainNet
-
-BAG_raw_Pyment
-BAG_bias_Pyment
-BAG_corr_Pyment
-
-BAG_raw_BRAID_WM
-BAG_bias_BRAID_WM
-BAG_corr_BRAID_WM
-
-BAG_raw_BRAID_GM
-BAG_bias_BRAID_GM
-BAG_corr_BRAID_GM
+PredAge_<Model>
+BAG_uncorr_<Model>
+BAG_corr_<Model>
 ```
 
-The previous historical names (`Predicted_age_non_BC_*`, `Predicted_BAG_non_BC_*`, and `delta_cv5_*`) are no longer used in the cleaned reproducibility dataset or analysis code.
+For example:
+
+```text
+PredAge_BrainAge
+BAG_uncorr_BrainAge
+BAG_corr_BrainAge
+```
+
+Model suffixes are:
+
+```text
+BrainAge
+BrainAgeR
+DeepBrainNet
+Pyment
+BRAID_WM
+BRAID_GM
+```
+
+Historical names such as `Predicted_age_non_BC_*`, `Predicted_BAG_non_BC_*`, `delta_cv5_*`, `BAG_raw_*`, and `BAG_bias_*` are not used in the cleaned reproducibility input.
 
 ## Repository structure
 
@@ -95,7 +96,7 @@ The subject-level analysis table contains:
 - educational indicators
 - intracranial volume (`ICV_ml`)
 - historical five-fold assignment (`cv_fold`)
-- BAG_raw, BAG_bias, and BAG_corr for all six models
+- `PredAge`, `BAG_uncorr`, and `BAG_corr` for all six models
 
 The workbook also contains a `Data_Dictionary` sheet describing the variables.
 
@@ -112,9 +113,9 @@ volume_ml
 
 For the final analytic sample the expected size is 105 participants × 100 ROIs = **10,500 rows**.
 
-### FastSurfer label template
+### `input/aparc.DKTatlas+aseg.deep.withCC.mgz`
 
-A compatible `aparc.DKTatlas+aseg.deep.withCC.mgz` file is needed only for generating NIfTI heatmaps.
+FastSurfer DKT+ASEG label image used only for mapping ROI statistics back into brain space and generating NIfTI heatmaps. The statistical ROI analyses do not require this file.
 
 ## Code
 
@@ -125,14 +126,13 @@ Reproduces the five-fold cross-validated linear age-bias correction.
 Within each training fold:
 
 ```text
-BAG_raw = alpha + beta × Age + error
+BAG_uncorr = alpha + beta × Age + error
 ```
 
-For held-out participants:
+For held-out participants, the expected linear age-bias term is estimated from the training-fold coefficients and subtracted from `BAG_uncorr`:
 
 ```text
-BAG_bias = alpha + beta × Age
-BAG_corr = BAG_raw − BAG_bias
+BAG_corr = BAG_uncorr − (alpha + beta × Age)
 ```
 
 Historical settings:
@@ -150,7 +150,7 @@ python code/age_bias_correction_cv5.py \
   --output output/brainpad_results_bias_corrected.xlsx
 ```
 
-The script reads every `BAG_raw_<Model>` column and writes the corresponding `BAG_bias_<Model>` and `BAG_corr_<Model>` columns.
+The script reads every `BAG_uncorr_<Model>` column and writes/overwrites the corresponding `BAG_corr_<Model>` column. Fold-specific `alpha` and `beta_age` values are saved in a separate `cv_parameters` sheet.
 
 ### `code/violin_plot_cohonf.py`
 
@@ -158,7 +158,7 @@ Six-model screening and visualization.
 
 Main operations:
 
-- uses either the six `BAG_corr_<Model>` columns or six `BAG_raw_<Model>` columns
+- uses either the six `BAG_corr_<Model>` columns or the six `BAG_uncorr_<Model>` columns
 - fits the Group × Model mixed-effects model with participant random intercept
 - runs model-specific one-way ANOVAs
 - applies Benjamini–Hochberg FDR correction across the six model-specific omnibus tests
@@ -166,16 +166,14 @@ Main operations:
 - calculates omnibus effect sizes
 - saves a model-screening CSV and violin plot to `output/`
 
-Set `USE_CORRECTED = True` for the primary BAG_corr analysis.
+Set `USE_CORRECTED = True` for the primary `BAG_corr` analysis.
 
 ### `code/scatter_plot_regression.R`
 
-BrainAge-specific age–BAG follow-up analyses.
-
-Uses:
+BrainAge-specific age–BAG follow-up analyses using:
 
 ```text
-BAG_raw_BrainAge
+BAG_uncorr_BrainAge
 BAG_corr_BrainAge
 ```
 
@@ -184,8 +182,8 @@ The script performs:
 - group-specific Age–BAG slopes
 - `Age × Group` interaction models
 - pairwise comparisons of age slopes with `emmeans::emtrends`
-- BAG_raw and BAG_corr age plots
-- the Age × Sex sensitivity analysis for BAG_corr
+- uncorrected and corrected BAG age plots
+- the Age × Sex sensitivity analysis for `BAG_corr`
 
 Results and figures are written to `output/`.
 
@@ -194,7 +192,7 @@ Results and figures are written to `output/`.
 Produces manuscript-style BrainAge violin/scatter figures using:
 
 ```text
-BAG_raw_BrainAge
+BAG_uncorr_BrainAge
 BAG_corr_BrainAge
 ```
 
@@ -214,13 +212,13 @@ The script:
 - applies FDR correction across ROIs
 - performs Fisher r-to-z between-group correlation comparisons
 - fits direct ROI-volume × group interaction models
-- optionally generates FDR-masked NIfTI heatmaps when a compatible FastSurfer label template is available
+- optionally generates FDR-masked NIfTI heatmaps when the FastSurfer label image is available
 
 ## Analysis workflow
 
 1. Place approved derived input files in `input/`.
-2. Reproduce or verify the age-bias correction with `age_bias_correction_cv5.py`.
-3. Run the primary six-model BAG_corr screen with `violin_plot_cohonf.py`.
+2. Reproduce or verify the five-fold age-bias correction with `age_bias_correction_cv5.py`.
+3. Run the primary six-model `BAG_corr` screen with `violin_plot_cohonf.py`.
 4. Run BrainAge-specific age–BAG follow-up analyses with `scatter_plot_regression.R`.
 5. Generate manuscript-style BrainAge figures with `scatter_plot_violin_plot_save_separately.R`.
 6. Run exploratory ROI analyses with `heatmap.nii.gz_bias_corrected.py`.
@@ -232,7 +230,7 @@ The six-model analysis of **BAG_corr** is the primary model-screening analysis. 
 
 BrainAge-specific age-slope and ROI analyses are follow-up/model-specific characterization analyses rather than independent confirmatory tests.
 
-**BAG_raw** is retained for transparency and comparison with original model outputs, but it is secondary because uncorrected BAG is susceptible to age-related estimation bias.
+**BAG_uncorr** is retained for transparency and comparison with the original model output, but it is secondary because uncorrected BAG is susceptible to age-related estimation bias.
 
 ## Software
 
