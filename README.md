@@ -6,7 +6,7 @@ Analysis and reproducibility repository for the manuscript:
 
 ## Overview
 
-The study examines MRI-derived brain-age measures in three mutually exclusive language-experience groups:
+This study examines MRI-derived brain-age measures in three mutually exclusive language-experience groups:
 
 - 44 non-professional bilinguals
 - 35 translators
@@ -14,17 +14,45 @@ The study examines MRI-derived brain-age measures in three mutually exclusive la
 
 Final analytic sample: **N = 105**.
 
-Six pretrained brain-age models were evaluated. The main outcome is the age-bias-corrected brain age gap. The repository contains the code used for model screening, cross-validated age-bias correction, age–BAG analyses, figure generation, and exploratory ROI-wise structure–brain-age analyses.
+Six pretrained brain-age models were evaluated. The primary brain-age outcome is the age-bias-corrected brain age gap. The repository contains code for five-fold cross-validated age-bias correction, six-model screening, BrainAge-specific age–BAG analyses, figure generation, and exploratory ROI-wise structure–brain-age analyses.
 
-### BAG terminology
+## BAG notation and variable names
 
-For clarity in the revised manuscript:
+To make the three BAG quantities visually distinct, the revised manuscript and repository use the same terminology:
 
 - **BAG_raw**: uncorrected brain age gap = predicted brain age − chronological age
 - **BAG_bias**: predicted linear age-bias component
 - **BAG_corr**: age-bias-corrected brain age gap = BAG_raw − BAG_bias
 
-Some historical variable names in the analysis files are retained for compatibility with the original scripts. In particular, columns beginning with `Predicted_age_non_BC_` contain raw BAG values rather than absolute predicted ages.
+The Excel dataset uses model-specific variable names of the form:
+
+```text
+BAG_raw_BrainAge
+BAG_bias_BrainAge
+BAG_corr_BrainAge
+
+BAG_raw_BrainAgeR
+BAG_bias_BrainAgeR
+BAG_corr_BrainAgeR
+
+BAG_raw_DeepBrainNet
+BAG_bias_DeepBrainNet
+BAG_corr_DeepBrainNet
+
+BAG_raw_Pyment
+BAG_bias_Pyment
+BAG_corr_Pyment
+
+BAG_raw_BRAID_WM
+BAG_bias_BRAID_WM
+BAG_corr_BRAID_WM
+
+BAG_raw_BRAID_GM
+BAG_bias_BRAID_GM
+BAG_corr_BRAID_GM
+```
+
+The previous historical names (`Predicted_age_non_BC_*`, `Predicted_BAG_non_BC_*`, and `delta_cv5_*`) are no longer used in the cleaned reproducibility dataset or analysis code.
 
 ## Repository structure
 
@@ -51,16 +79,58 @@ Bilingualism/
 
 Participant-level derived data are not committed by default. See `input/README.md` for the expected input files and data-sharing notes.
 
+## Input data
+
+### `input/brainpad_results_deidentified.xlsx`
+
+The subject-level analysis table contains:
+
+- anonymous participant ID (`MRI code`)
+- group
+- age
+- sex/gender
+- FSIQ
+- age of L2 acquisition (AoA)
+- LexTALE score
+- educational indicators
+- intracranial volume (`ICV_ml`)
+- historical five-fold assignment (`cv_fold`)
+- BAG_raw, BAG_bias, and BAG_corr for all six models
+
+The workbook also contains a `Data_Dictionary` sheet describing the variables.
+
+### `input/roi_volumes_deidentified.csv`
+
+Long-format FastSurfer DKT+ASEG ROI table containing:
+
+```text
+subject_id
+label_id
+roi_name
+volume_ml
+```
+
+For the final analytic sample the expected size is 105 participants × 100 ROIs = **10,500 rows**.
+
+### FastSurfer label template
+
+A compatible `aparc.DKTatlas+aseg.deep.withCC.mgz` file is needed only for generating NIfTI heatmaps.
+
 ## Code
 
 ### `code/age_bias_correction_cv5.py`
 
-Reproduces the five-fold cross-validated linear age-bias correction used for the BAG analysis.
+Reproduces the five-fold cross-validated linear age-bias correction.
 
 Within each training fold:
 
 ```text
 BAG_raw = alpha + beta × Age + error
+```
+
+For held-out participants:
+
+```text
 BAG_bias = alpha + beta × Age
 BAG_corr = BAG_raw − BAG_bias
 ```
@@ -71,9 +141,7 @@ Historical settings:
 - `shuffle=True`
 - `random_state=42`
 
-Exact reproduction requires either the original row order or the saved fold assignment.
-
-Example:
+For exact reproduction, use the saved `cv_fold` assignments:
 
 ```bash
 python code/age_bias_correction_cv5.py \
@@ -82,91 +150,89 @@ python code/age_bias_correction_cv5.py \
   --output output/brainpad_results_bias_corrected.xlsx
 ```
 
+The script reads every `BAG_raw_<Model>` column and writes the corresponding `BAG_bias_<Model>` and `BAG_corr_<Model>` columns.
+
 ### `code/violin_plot_cohonf.py`
 
 Six-model screening and visualization.
 
 Main operations:
 
-- reshapes BAG values across six pretrained models
+- uses either the six `BAG_corr_<Model>` columns or six `BAG_raw_<Model>` columns
 - fits the Group × Model mixed-effects model with participant random intercept
 - runs model-specific one-way ANOVAs
-- applies across-model multiplicity correction
-- performs within-model Tukey post-hoc comparisons
+- applies Benjamini–Hochberg FDR correction across the six model-specific omnibus tests
+- performs within-model Tukey HSD comparisons
 - calculates omnibus effect sizes
-- produces model-wise violin plots
+- saves a model-screening CSV and violin plot to `output/`
+
+Set `USE_CORRECTED = True` for the primary BAG_corr analysis.
 
 ### `code/scatter_plot_regression.R`
 
-Age–BAG regression analyses and supporting demographic/sensitivity plots.
+BrainAge-specific age–BAG follow-up analyses.
 
-Includes:
+Uses:
+
+```text
+BAG_raw_BrainAge
+BAG_corr_BrainAge
+```
+
+The script performs:
 
 - group-specific Age–BAG slopes
 - `Age × Group` interaction models
-- pairwise slope comparisons using `emmeans::emtrends`
-- raw and corrected BAG plots
-- age-distribution plots
-- predicted-age plots
-- sex-related sensitivity analyses
+- pairwise comparisons of age slopes with `emmeans::emtrends`
+- BAG_raw and BAG_corr age plots
+- the Age × Sex sensitivity analysis for BAG_corr
+
+Results and figures are written to `output/`.
 
 ### `code/scatter_plot_violin_plot_save_separately.R`
 
-Produces the manuscript-style combined violin/scatter figures for uncorrected and age-bias-corrected BAG.
+Produces manuscript-style BrainAge violin/scatter figures using:
+
+```text
+BAG_raw_BrainAge
+BAG_corr_BrainAge
+```
 
 ### `code/heatmap.nii.gz_bias_corrected.py`
 
-Exploratory ROI-wise structure–brain-age analysis.
-
-Main operations:
-
-- merges subject-level BAG data with FastSurfer DKT+ASEG ROI volumes
-- residualizes ROI volumes for available covariates (ICV, age, sex)
-- computes within-group Pearson and Spearman associations
-- applies FDR correction across ROIs
-- performs between-group correlation-difference tests (Fisher r-to-z)
-- produces ROI summary tables and NIfTI heatmaps
-
-## Expected input files
-
-Place approved derived files in `input/`.
-
-### `brainpad_results_deidentified.xlsx`
-
-Subject-level analysis table containing demographics, group membership, ICV, six model-specific raw BAG values, and six age-bias-corrected BAG values.
-
-### `roi_volumes_deidentified.csv`
-
-Long-format ROI table containing:
+Exploratory ROI-wise structure–brain-age analysis. The default outcome is:
 
 ```text
-subject_id
-label_id
-roi_name
-volume_ml
+BAG_corr_BrainAge
 ```
 
-For the final sample the expected size is 105 participants × 100 ROIs = 10,500 rows.
+The script:
 
-### FastSurfer label template
-
-A compatible `aparc.DKTatlas+aseg.deep.withCC.mgz` segmentation is required only for generating NIfTI heatmaps.
+- merges subject-level BAG data with FastSurfer ROI volumes
+- residualizes ROI volumes for `ICV_ml`, age, and sex
+- computes within-group Pearson and Spearman associations
+- applies FDR correction across ROIs
+- performs Fisher r-to-z between-group correlation comparisons
+- fits direct ROI-volume × group interaction models
+- optionally generates FDR-masked NIfTI heatmaps when a compatible FastSurfer label template is available
 
 ## Analysis workflow
 
-1. **Prepare derived input data** in `input/`.
-2. **Reproduce age-bias correction** with `age_bias_correction_cv5.py` when raw BAG and fold assignments are available.
-3. **Run the six-model screen** with `violin_plot_cohonf.py`.
-4. **Run Age–BAG analyses** with `scatter_plot_regression.R`.
-5. **Generate manuscript figures** with `scatter_plot_violin_plot_save_separately.R`.
-6. **Run exploratory ROI analyses** with `heatmap.nii.gz_bias_corrected.py`.
-7. Write generated figures and tables to `output/`.
+1. Place approved derived input files in `input/`.
+2. Reproduce or verify the age-bias correction with `age_bias_correction_cv5.py`.
+3. Run the primary six-model BAG_corr screen with `violin_plot_cohonf.py`.
+4. Run BrainAge-specific age–BAG follow-up analyses with `scatter_plot_regression.R`.
+5. Generate manuscript-style BrainAge figures with `scatter_plot_violin_plot_save_separately.R`.
+6. Run exploratory ROI analyses with `heatmap.nii.gz_bias_corrected.py`.
+7. Generated figures and tables are written to `output/`.
 
 ## Statistical interpretation
 
-The six-model analysis of age-bias-corrected BAG is the primary model-screening analysis. Model-specific analyses should be interpreted in the context of the multiplicity-corrected six-model result. BrainAge-specific age-slope and ROI analyses are follow-up/model-specific characterization analyses rather than independent confirmatory tests.
+The six-model analysis of **BAG_corr** is the primary model-screening analysis. Model-specific findings should be interpreted in the context of the multiplicity-corrected six-model result.
 
-Uncorrected BAG is retained for transparency and comparison with original model outputs but is secondary to age-bias-corrected BAG because raw BAG is susceptible to age-related estimation bias.
+BrainAge-specific age-slope and ROI analyses are follow-up/model-specific characterization analyses rather than independent confirmatory tests.
+
+**BAG_raw** is retained for transparency and comparison with original model outputs, but it is secondary because uncorrected BAG is susceptible to age-related estimation bias.
 
 ## Software
 
@@ -194,8 +260,6 @@ Core packages:
 
 R 4.2 or later is recommended.
 
-Required packages include:
-
 ```r
 install.packages(c(
   "readxl", "dplyr", "tidyr", "ggplot2", "broom",
@@ -203,23 +267,11 @@ install.packages(c(
 ))
 ```
 
-## Paths
-
-The original analysis scripts were developed on local/HPC systems and some legacy scripts still contain historical absolute paths. When reproducing the analyses, replace these with the repository paths:
-
-```text
-input/brainpad_results_deidentified.xlsx
-input/roi_volumes_deidentified.csv
-output/
-```
-
-The standalone age-bias correction script already accepts input/output paths through command-line arguments.
-
 ## Data availability and privacy
 
 This repository contains analysis code but does **not** currently publish raw MRI or participant-level research data.
 
-Only derived, de-identified/pseudonymised analysis files should be considered for public release, and only after confirmation that such sharing is permitted by the study consent, ethics approval, and institutional governance requirements. Until that approval is confirmed, participant-level input files are excluded by `.gitignore`.
+Only derived, pseudonymised analysis files should be considered for public release, and only after confirmation that sharing is permitted by the study consent, ethics approval, and institutional governance requirements. Until that approval is confirmed, participant-level input files are excluded by `.gitignore`.
 
 ## License
 
