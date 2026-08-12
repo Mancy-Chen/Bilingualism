@@ -1,6 +1,6 @@
 ###############################################################################
 # Manuscript-style BrainAge violin + scatter figures
-# Uses BAG_raw_BrainAge and BAG_corr_BrainAge.
+# Uses BAG_uncorr_BrainAge and BAG_corr_BrainAge.
 ###############################################################################
 
 library(readxl)
@@ -24,16 +24,16 @@ df <- read_excel(input_file, sheet = "Analysis_Data") |>
   )
 
 df_long <- df |>
-  select(group, Age, BAG_raw_BrainAge, BAG_corr_BrainAge) |>
+  select(group, Age, BAG_uncorr_BrainAge, BAG_corr_BrainAge) |>
   pivot_longer(
-    c(BAG_raw_BrainAge, BAG_corr_BrainAge),
+    c(BAG_uncorr_BrainAge, BAG_corr_BrainAge),
     names_to = "type",
     values_to = "BAG"
   ) |>
   mutate(
     type = recode(
       type,
-      BAG_raw_BrainAge = "BAG_raw",
+      BAG_uncorr_BrainAge = "BAG_uncorr",
       BAG_corr_BrainAge = "BAG_corr"
     )
   )
@@ -99,8 +99,8 @@ make_pair <- function(type_name, title_text, output_name) {
       )
   }
 
-  wide_col <- if (type_name == "BAG_raw") {
-    "BAG_raw_BrainAge"
+  wide_col <- if (type_name == "BAG_uncorr") {
+    "BAG_uncorr_BrainAge"
   } else {
     "BAG_corr_BrainAge"
   }
@@ -141,9 +141,9 @@ make_pair <- function(type_name, title_text, output_name) {
 }
 
 make_pair(
-  "BAG_raw",
-  "Linear association between age and BAG_raw",
-  "Figure_BAG_raw_BrainAge.png"
+  "BAG_uncorr",
+  "Linear association between age and BAG_uncorr",
+  "Figure_BAG_uncorr_BrainAge.png"
 )
 
 make_pair(
