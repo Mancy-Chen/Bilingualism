@@ -73,7 +73,7 @@ def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     sns.set_context("talk", font_scale=1.2)
 
-    metric = "BAG_corr" if USE_CORRECTED else "BAG_raw"
+    metric = "BAG_corr" if USE_CORRECTED else "BAG_uncorr"
     bag_cols = [f"{metric}_{m}" for m in MODEL_NAMES]
 
     df = pd.read_excel(INPUT_XLSX, sheet_name="Analysis_Data")
@@ -110,7 +110,7 @@ def main() -> None:
     print(f"Group × Model LRT: LR={lr:.3f}, df={df_diff}, p={p_lrt:.6g}")
 
     rows = []
-    raw_p = []
+    pvals = []
 
     for model in MODEL_NAMES:
         sub = df_long[df_long["Model"] == model].copy()
@@ -120,7 +120,7 @@ def main() -> None:
         ]
         f_stat, p_val = f_oneway(*groups)
         effect = anova_effect_sizes_oneway(sub)
-        raw_p.append(p_val)
+        pvals.append(p_val)
 
         tk = pairwise_tukeyhsd(
             endog=sub["BrainAgeGap"],
@@ -134,14 +134,14 @@ def main() -> None:
             {
                 "model": PRETTY_NAMES[model],
                 "F": f_stat,
-                "p_raw": p_val,
+                "p_uncorrected": p_val,
                 "eta2": effect["eta2"],
                 "omega2": effect["omega2"],
                 "cohen_f": effect["f"],
             }
         )
 
-    reject, p_fdr, _, _ = multipletests(raw_p, method=MULTIPLICITY_METHOD)
+    reject, p_fdr, _, _ = multipletests(pvals, method=MULTIPLICITY_METHOD)
     for row, pc, rj in zip(rows, p_fdr, reject):
         row["p_FDR"] = pc
         row["FDR_significant"] = bool(rj)
