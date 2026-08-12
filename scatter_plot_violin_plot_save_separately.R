@@ -155,7 +155,7 @@ p_unc_violin <- ggplot(df_unc, aes(x = group, y = BAG, fill = group)) +
   labs(
     x = "Group",
     y = "BAG (years)",
-    title = "Group distribution of BAG"
+    title = "Group distribution of BAG_raw"
   ) +
   big_theme +
   theme(
@@ -196,7 +196,7 @@ p_unc_scatter <- ggplot(
   labs(
     x = "Age (years)",
     y = "Uncorrected BAG",
-    title = "Linear association between age and BAG"
+    title = "Linear association between age and BAG_raw"
   ) +
   big_theme +
   annotate(
@@ -236,7 +236,7 @@ p_cor_violin <- ggplot(df_cor, aes(x = group, y = BAG, fill = group)) +
   labs(
     x = "Group",
     y = "BAG (years)",
-    title = "Group distribution of BAG′"
+    title = "Group distribution of BAG_corr"
   ) +
   big_theme +
   theme(
@@ -276,7 +276,7 @@ p_cor_scatter <- ggplot(
   labs(
     x = "Age (years)",
     y = "Corrected BAG",
-    title = "Linear association between age and BAG′"
+    title = "Linear association between age and BAG_corr"
   ) +
   big_theme +
   annotate(
