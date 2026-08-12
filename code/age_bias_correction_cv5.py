@@ -2,11 +2,14 @@
 """
 Five-fold cross-validated linear age-bias correction for brain age gap (BAG).
 
-Notation
---------
-BAG_raw_<Model>  : uncorrected brain-age gap = predicted brain age - chronological age
-BAG_bias_<Model> : predicted linear age-bias component from the training fold
-BAG_corr_<Model> : age-bias-corrected BAG = BAG_raw - BAG_bias
+Final notation
+--------------
+PredAge_<Model>    : predicted brain age in years
+BAG_uncorr_<Model> : uncorrected brain-age gap = predicted brain age - chronological age
+BAG_corr_<Model>   : five-fold cross-validated age-bias-corrected BAG
+
+The age-bias term is an intermediate quantity only. It is estimated within each
+training fold and is not stored in the main analysis table.
 
 Historical settings used in this project:
     n_splits=5
@@ -27,23 +30,25 @@ import pandas as pd
 import statsmodels.api as sm
 from sklearn.model_selection import KFold
 
-RAW_PREFIX = "BAG_raw_"
-BIAS_PREFIX = "BAG_bias_"
+UNCORR_PREFIX = "BAG_uncorr_"
 CORR_PREFIX = "BAG_corr_"
 
 
-def find_raw_bag_columns(df: pd.DataFrame, prefix: str = RAW_PREFIX) -> list[str]:
+def find_uncorrected_bag_columns(
+    df: pd.DataFrame,
+    prefix: str = UNCORR_PREFIX,
+) -> list[str]:
     cols = [c for c in df.columns if c.startswith(prefix)]
     if not cols:
         raise ValueError(
-            f"No raw BAG columns found with prefix {prefix!r}. "
-            "Expected columns such as 'BAG_raw_BrainAge'."
+            f"No uncorrected BAG columns found with prefix {prefix!r}. "
+            "Expected columns such as 'BAG_uncorr_BrainAge'."
         )
     return cols
 
 
 def fit_age_bias(y: np.ndarray, age: np.ndarray) -> tuple[float, float]:
-    """Fit BAG_raw = alpha + beta * Age on non-missing training observations."""
+    """Fit BAG_uncorr = alpha + beta * Age on non-missing training observations."""
     X = sm.add_constant(age, has_constant="add")
     fit = sm.OLS(y, X, missing="drop").fit()
     if len(fit.params) != 2:
@@ -68,23 +73,21 @@ def generate_folds(
 
 def correct_bag_with_folds(
     df: pd.DataFrame,
-    raw_bag_cols: list[str],
+    uncorr_bag_cols: list[str],
     age_col: str,
     fold_id: np.ndarray,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Calculate BAG_bias and BAG_corr for each model and held-out fold."""
+    """Calculate BAG_corr for each model using held-out-fold age-bias estimates."""
     age = pd.to_numeric(df[age_col], errors="coerce").to_numpy(dtype=float)
     outputs: dict[str, np.ndarray] = {}
     parameter_rows: list[dict] = []
     unique_folds = sorted(int(f) for f in np.unique(fold_id) if int(f) >= 1)
 
-    for raw_col in raw_bag_cols:
-        model = raw_col[len(RAW_PREFIX):]
-        bias_col = f"{BIAS_PREFIX}{model}"
+    for uncorr_col in uncorr_bag_cols:
+        model = uncorr_col[len(UNCORR_PREFIX):]
         corr_col = f"{CORR_PREFIX}{model}"
 
-        y = pd.to_numeric(df[raw_col], errors="coerce").to_numpy(dtype=float)
-        bias_out = np.full(len(df), np.nan, dtype=float)
+        y = pd.to_numeric(df[uncorr_col], errors="coerce").to_numpy(dtype=float)
         corr_out = np.full(len(df), np.nan, dtype=float)
 
         for fold in unique_folds:
@@ -92,10 +95,8 @@ def correct_bag_with_folds(
             test_idx = np.flatnonzero(fold_id == fold)
 
             alpha, beta = fit_age_bias(y[train_idx], age[train_idx])
-            expected_bias = alpha + beta * age[test_idx]
-
-            bias_out[test_idx] = expected_bias
-            corr_out[test_idx] = y[test_idx] - expected_bias
+            expected_age_bias = alpha + beta * age[test_idx]
+            corr_out[test_idx] = y[test_idx] - expected_age_bias
 
             parameter_rows.append(
                 {
@@ -112,7 +113,6 @@ def correct_bag_with_folds(
                 }
             )
 
-        outputs[bias_col] = bias_out
         outputs[corr_col] = corr_out
 
     return pd.DataFrame(outputs, index=df.index), pd.DataFrame(parameter_rows)
@@ -120,7 +120,7 @@ def correct_bag_with_folds(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Five-fold cross-validated linear age-bias correction of BAG_raw."
+        description="Five-fold cross-validated linear age-bias correction of BAG_uncorr."
     )
     parser.add_argument(
         "--input",
@@ -138,7 +138,7 @@ def main() -> None:
         help="Input sheet name or zero-based sheet index.",
     )
     parser.add_argument("--age-col", default="Age")
-    parser.add_argument("--raw-prefix", default=RAW_PREFIX)
+    parser.add_argument("--uncorr-prefix", default=UNCORR_PREFIX)
     parser.add_argument(
         "--fold-col",
         default="cv_fold",
@@ -161,7 +161,7 @@ def main() -> None:
     if args.age_col not in df.columns:
         raise ValueError(f"Missing age column: {args.age_col!r}")
 
-    raw_bag_cols = find_raw_bag_columns(df, prefix=args.raw_prefix)
+    uncorr_bag_cols = find_uncorrected_bag_columns(df, prefix=args.uncorr_prefix)
 
     use_fold_col = bool(args.fold_col)
     if use_fold_col:
@@ -180,7 +180,7 @@ def main() -> None:
 
     corrected_df, params_df = correct_bag_with_folds(
         df=df,
-        raw_bag_cols=raw_bag_cols,
+        uncorr_bag_cols=uncorr_bag_cols,
         age_col=args.age_col,
         fold_id=fold_id,
     )
@@ -196,7 +196,7 @@ def main() -> None:
 
     print(f"Input:  {input_path}")
     print(f"Rows:   {len(df)}")
-    print(f"Models: {len(raw_bag_cols)}")
+    print(f"Models: {len(uncorr_bag_cols)}")
     print(f"Folds:  {sorted(np.unique(fold_id).tolist())}")
     print(f"Saved:  {output_path}")
 
