@@ -1,133 +1,232 @@
-README
-===========
+# Association of bilingual language use with brain age
 
-Title
------
-Language processing demands affect brain age: analysis code
-(MRI evidence from bilinguals, translators, and interpreters)
+Analysis and reproducibility repository for the manuscript:
 
-Overview
---------
-This repository contains analysis scripts used for the manuscript:
-"Language processing demands affect brain age: MRI evidence from bilinguals, translators, and interpreters"
+**Association of bilingual language use with brain age: MRI evidence from bilinguals, translators, and interpreters**
 
-The code supports three main outputs:
-1) Model-wise violin plots for six brain-age models across groups
-2) Age–BAG and Age–ΔBAG regression plots and slope comparisons
-3) ROI-wise structure–ΔBAG association results and NIfTI heatmaps mapped to atlas label space
+## Overview
 
-Important: This repository does NOT include raw MRI or restricted participant data.
-Only derived, de-identified tables should be used locally.
+The study examines MRI-derived brain-age measures in three mutually exclusive language-experience groups:
 
-Included scripts
-----------------
-1) scatter_plot_regression.R
-   - Reads a derived Excel table
-   - Plots Age vs raw BAG and Age vs bias-corrected ΔBAG by group
-   - Fits within-group linear models and Age*Group interaction models
-   - Performs slope comparisons (emmeans/emtrends)
-   - Saves multiple figures (PNG)
+- 44 non-professional bilinguals
+- 35 translators
+- 26 interpreters
 
-2) violin_plot_cohonD.py
-   - Reads a derived Excel table containing outputs from six pretrained brain-age models
-   - Produces violin plots by group for each model (raw or bias-corrected)
-   - Runs ANOVA and Tukey post-hoc tests
-   - Computes effect sizes (Cohen’s d)
-   - Saves a final violin plot (PNG)
+Final analytic sample: **N = 105**.
 
-3) heatmap.nii.gz_bias_corrected.py
-   - Reads a long-format ROI volume table (FastSurfer DKT+ASEG) and a brain-age results table
-   - Residualizes ROI volumes for covariates (e.g., ICV, Age, Gender, Site if available)
-   - Computes within-group Pearson/Spearman correlations between ROI volume residuals and ΔBAG
-   - Applies FDR correction across ROIs
-   - Runs between-group correlation difference tests (Fisher r-to-z) with FDR correction
-   - Saves CSV summaries and NIfTI heatmaps (.nii.gz) aligned to a template label image
+Six pretrained brain-age models were evaluated. The main outcome is the age-bias-corrected brain age gap. The repository contains the code used for model screening, cross-validated age-bias correction, age–BAG analyses, figure generation, and exploratory ROI-wise structure–brain-age analyses.
 
-Software requirements
----------------------
-R (for scatter_plot_regression.R)
-- R >= 4.2 recommended
-- Packages: readxl, dplyr, tidyr, ggplot2, ggpubr, patchwork, broom, emmeans, rstatix
+### BAG terminology
 
-Install in R:
-install.packages(c("readxl","dplyr","tidyr","ggplot2","ggpubr","patchwork","broom","emmeans","rstatix"))
+For clarity in the revised manuscript:
 
-Python (for violin_plot_cohonD.py and heatmap.nii.gz_bias_corrected.py)
-- Python 3.10 recommended
-- Packages: numpy, pandas, scipy, statsmodels, matplotlib, seaborn, nibabel
+- **BAG_raw**: uncorrected brain age gap = predicted brain age − chronological age
+- **BAG_bias**: predicted linear age-bias component
+- **BAG_corr**: age-bias-corrected brain age gap = BAG_raw − BAG_bias
 
-Install with pip:
-pip install numpy pandas scipy statsmodels matplotlib seaborn nibabel
+Some historical variable names in the analysis files are retained for compatibility with the original scripts. In particular, columns beginning with `Predicted_age_non_BC_` contain raw BAG values rather than absolute predicted ages.
 
-Recommended folder layout
--------------------------
-Create a simple structure like:
+## Repository structure
 
-repo_root/
-  scripts/
-    scatter_plot_regression.R
-    violin_plot_cohonD.py
-    heatmap.nii.gz_bias_corrected.py
-  data/
-    brainpad_results.xlsx
-    brainpad_results_radiomics.xlsx
-    DKTatlas_aseg_deep_withCC_long.csv
-    aparc.DKTatlas+aseg.deep.withCC.mgz
-  outputs/
+```text
+Bilingualism/
+├── README.md
+├── LICENSE
+├── requirements.txt
+├── .gitignore
+│
+├── input/
+│   └── README.md
+│
+├── code/
+│   ├── age_bias_correction_cv5.py
+│   ├── violin_plot_cohonf.py
+│   ├── scatter_plot_regression.R
+│   ├── scatter_plot_violin_plot_save_separately.R
+│   └── heatmap.nii.gz_bias_corrected.py
+│
+└── output/
+    └── README.md
+```
 
-Notes:
-- The scripts currently contain hard-coded file paths (e.g., C:/... or /data/projects/...).
-- Before running, edit each script to point to your own local file locations.
-- Prefer relative paths such as: data/brainpad_results.xlsx and outputs/
+Participant-level derived data are not committed by default. See `input/README.md` for the expected input files and data-sharing notes.
 
-Expected input data (derived)
------------------------------
-A) Excel table with demographics + group + brain-age outputs
-   Typical required columns:
-   - Age
-   - group  (values: bilinguals, translators, interpreters)
-   - subject identifier (e.g., "MRI code" or "subject_id")
-   - model outputs:
-     raw BAG columns (example): Predicted_BAG_non_BC_Brainage
-     bias-corrected columns (example): delta_cv5_Predicted_age_non_BC_Brainage
-   The exact column names can vary; adjust in scripts if needed.
+## Code
 
-B) ROI table for heatmap script (CSV)
-   - Long-format ROI data from FastSurfer DKT+ASEG
-   - Should include subject_id and ROI volume values
-   - ROI definition corresponds to FastSurfer aparc.DKTatlas+aseg (DKT cortex + ASEG subcortex; ~100 ROIs)
+### `code/age_bias_correction_cv5.py`
 
-C) Template label image for mapping heatmaps
-   - FastSurfer segmentation label file, e.g. aparc.DKTatlas+aseg.deep.withCC.mgz
+Reproduces the five-fold cross-validated linear age-bias correction used for the BAG analysis.
 
-How to run
-----------
-1) Update paths inside the scripts to match your local system.
-   - Set input Excel/CSV paths
-   - Set output directory paths
+Within each training fold:
 
-2) Run R script:
-   In R (from repo root):
-   source("scripts/scatter_plot_regression.R")
+```text
+BAG_raw = alpha + beta × Age + error
+BAG_bias = alpha + beta × Age
+BAG_corr = BAG_raw − BAG_bias
+```
 
-3) Run Python violin plot:
-   python scripts/violin_plot_cohonD.py
+Historical settings:
 
-4) Run Python ROI heatmap:
-   python scripts/heatmap.nii.gz_bias_corrected.py
+- 5 folds
+- `shuffle=True`
+- `random_state=42`
 
-Outputs
--------
-- PNG figures (scatter plots and violin plots), saved by the scripts
-- CSV tables summarizing ROI correlations, FDR results, and between-group tests
-- NIfTI heatmaps (.nii.gz) for correlation and regression effects mapped to atlas label space
+Exact reproduction requires either the original row order or the saved fold assignment.
 
-Privacy and sharing
--------------------
-- Do not upload raw MRI, NDA-controlled data, or identifiable participant data to GitHub.
-- Share only code + instructions + (optional) synthetic/example data.
+Example:
 
-Contact
--------
-Mingshi Chen
+```bash
+python code/age_bias_correction_cv5.py \
+  --input input/brainpad_results_deidentified.xlsx \
+  --fold-col cv_fold \
+  --output output/brainpad_results_bias_corrected.xlsx
+```
+
+### `code/violin_plot_cohonf.py`
+
+Six-model screening and visualization.
+
+Main operations:
+
+- reshapes BAG values across six pretrained models
+- fits the Group × Model mixed-effects model with participant random intercept
+- runs model-specific one-way ANOVAs
+- applies across-model multiplicity correction
+- performs within-model Tukey post-hoc comparisons
+- calculates omnibus effect sizes
+- produces model-wise violin plots
+
+### `code/scatter_plot_regression.R`
+
+Age–BAG regression analyses and supporting demographic/sensitivity plots.
+
+Includes:
+
+- group-specific Age–BAG slopes
+- `Age × Group` interaction models
+- pairwise slope comparisons using `emmeans::emtrends`
+- raw and corrected BAG plots
+- age-distribution plots
+- predicted-age plots
+- sex-related sensitivity analyses
+
+### `code/scatter_plot_violin_plot_save_separately.R`
+
+Produces the manuscript-style combined violin/scatter figures for uncorrected and age-bias-corrected BAG.
+
+### `code/heatmap.nii.gz_bias_corrected.py`
+
+Exploratory ROI-wise structure–brain-age analysis.
+
+Main operations:
+
+- merges subject-level BAG data with FastSurfer DKT+ASEG ROI volumes
+- residualizes ROI volumes for available covariates (ICV, age, sex)
+- computes within-group Pearson and Spearman associations
+- applies FDR correction across ROIs
+- performs between-group correlation-difference tests (Fisher r-to-z)
+- produces ROI summary tables and NIfTI heatmaps
+
+## Expected input files
+
+Place approved derived files in `input/`.
+
+### `brainpad_results_deidentified.xlsx`
+
+Subject-level analysis table containing demographics, group membership, ICV, six model-specific raw BAG values, and six age-bias-corrected BAG values.
+
+### `roi_volumes_deidentified.csv`
+
+Long-format ROI table containing:
+
+```text
+subject_id
+label_id
+roi_name
+volume_ml
+```
+
+For the final sample the expected size is 105 participants × 100 ROIs = 10,500 rows.
+
+### FastSurfer label template
+
+A compatible `aparc.DKTatlas+aseg.deep.withCC.mgz` segmentation is required only for generating NIfTI heatmaps.
+
+## Analysis workflow
+
+1. **Prepare derived input data** in `input/`.
+2. **Reproduce age-bias correction** with `age_bias_correction_cv5.py` when raw BAG and fold assignments are available.
+3. **Run the six-model screen** with `violin_plot_cohonf.py`.
+4. **Run Age–BAG analyses** with `scatter_plot_regression.R`.
+5. **Generate manuscript figures** with `scatter_plot_violin_plot_save_separately.R`.
+6. **Run exploratory ROI analyses** with `heatmap.nii.gz_bias_corrected.py`.
+7. Write generated figures and tables to `output/`.
+
+## Statistical interpretation
+
+The six-model analysis of age-bias-corrected BAG is the primary model-screening analysis. Model-specific analyses should be interpreted in the context of the multiplicity-corrected six-model result. BrainAge-specific age-slope and ROI analyses are follow-up/model-specific characterization analyses rather than independent confirmatory tests.
+
+Uncorrected BAG is retained for transparency and comparison with original model outputs but is secondary to age-bias-corrected BAG because raw BAG is susceptible to age-related estimation bias.
+
+## Software
+
+### Python
+
+Python 3.10 or later is recommended.
+
+```bash
+pip install -r requirements.txt
+```
+
+Core packages:
+
+- numpy
+- pandas
+- scipy
+- statsmodels
+- scikit-learn
+- matplotlib
+- seaborn
+- nibabel
+- openpyxl
+
+### R
+
+R 4.2 or later is recommended.
+
+Required packages include:
+
+```r
+install.packages(c(
+  "readxl", "dplyr", "tidyr", "ggplot2", "broom",
+  "emmeans", "rstatix", "ggpubr", "patchwork"
+))
+```
+
+## Paths
+
+The original analysis scripts were developed on local/HPC systems and some legacy scripts still contain historical absolute paths. When reproducing the analyses, replace these with the repository paths:
+
+```text
+input/brainpad_results_deidentified.xlsx
+input/roi_volumes_deidentified.csv
+output/
+```
+
+The standalone age-bias correction script already accepts input/output paths through command-line arguments.
+
+## Data availability and privacy
+
+This repository contains analysis code but does **not** currently publish raw MRI or participant-level research data.
+
+Only derived, de-identified/pseudonymised analysis files should be considered for public release, and only after confirmation that such sharing is permitted by the study consent, ethics approval, and institutional governance requirements. Until that approval is confirmed, participant-level input files are excluded by `.gitignore`.
+
+## License
+
+Code in this repository is distributed under the MIT License. Data, if shared separately, remain subject to their own ethical and institutional use restrictions.
+
+## Contact
+
+Mingshi Chen  
+Amsterdam UMC  
 m.chen@amsterdamumc.nl
