@@ -25,11 +25,11 @@ Core participant variables include:
 - `ICV_ml`
 - `cv_fold`
 
-Brain-age variables use the same notation as the revised manuscript:
+Brain-age variables use the final reproducibility notation:
 
 ```text
-BAG_raw_<Model>
-BAG_bias_<Model>
+PredAge_<Model>
+BAG_uncorr_<Model>
 BAG_corr_<Model>
 ```
 
@@ -47,16 +47,18 @@ BRAID_GM
 For example:
 
 ```text
-BAG_raw_BrainAge
-BAG_bias_BrainAge
+PredAge_BrainAge
+BAG_uncorr_BrainAge
 BAG_corr_BrainAge
 ```
 
 Definitions:
 
-- `BAG_raw` = predicted brain age − chronological age
-- `BAG_bias` = predicted linear age-bias component from the training fold
-- `BAG_corr` = `BAG_raw − BAG_bias`
+- `PredAge` = predicted brain age in years
+- `BAG_uncorr` = predicted brain age − chronological age before age-bias correction
+- `BAG_corr` = five-fold cross-validated age-bias-corrected BAG
+
+The age-bias component itself is an intermediate quantity and is not stored in the main analysis table because downstream analyses do not use it.
 
 The workbook also contains a `Data_Dictionary` sheet.
 
@@ -75,7 +77,7 @@ For the final sample this table contains 105 participants × 100 ROIs = **10,500
 
 ### `aparc.DKTatlas+aseg.deep.withCC.mgz`
 
-Template segmentation used only when generating NIfTI ROI heatmaps. A compatible FastSurfer DKT+ASEG label image may be used instead.
+FastSurfer DKT+ASEG label image used only when generating NIfTI ROI heatmaps. It is not needed for the statistical ROI calculations themselves.
 
 ## Data sharing
 
