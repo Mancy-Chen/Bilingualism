@@ -1,6 +1,6 @@
 ###############################################################################
 # BrainAge follow-up: Age–BAG analyses
-# Uses reviewer-friendly BAG_raw / BAG_corr variable names.
+# Uses final BAG_uncorr / BAG_corr variable names.
 ###############################################################################
 
 library(readxl)
@@ -25,7 +25,7 @@ df <- read_excel(input_file, sheet = "Analysis_Data") |>
 
 required <- c(
   "Age", "group", "Gender",
-  "BAG_raw_BrainAge", "BAG_corr_BrainAge"
+  "BAG_uncorr_BrainAge", "BAG_corr_BrainAge"
 )
 missing_cols <- setdiff(required, names(df))
 if (length(missing_cols) > 0) {
@@ -35,9 +35,9 @@ if (length(missing_cols) > 0) {
 # ---------------------------------------------------------------------------
 # Group-specific age slopes
 # ---------------------------------------------------------------------------
-raw_slopes <- df |>
+uncorr_slopes <- df |>
   group_by(group) |>
-  group_modify(~ tidy(lm(BAG_raw_BrainAge ~ Age, data = .x))) |>
+  group_modify(~ tidy(lm(BAG_uncorr_BrainAge ~ Age, data = .x))) |>
   filter(term == "Age") |>
   ungroup()
 
@@ -48,8 +48,8 @@ corr_slopes <- df |>
   ungroup()
 
 write.csv(
-  raw_slopes,
-  file.path(output_dir, "age_slopes_BAG_raw_BrainAge.csv"),
+  uncorr_slopes,
+  file.path(output_dir, "age_slopes_BAG_uncorr_BrainAge.csv"),
   row.names = FALSE
 )
 write.csv(
@@ -58,23 +58,23 @@ write.csv(
   row.names = FALSE
 )
 
-print(raw_slopes)
+print(uncorr_slopes)
 print(corr_slopes)
 
 # ---------------------------------------------------------------------------
 # Combined Age × Group interaction models
 # ---------------------------------------------------------------------------
-lm_raw <- lm(BAG_raw_BrainAge ~ Age * group, data = df)
+lm_uncorr <- lm(BAG_uncorr_BrainAge ~ Age * group, data = df)
 lm_corr <- lm(BAG_corr_BrainAge ~ Age * group, data = df)
 
-print(summary(lm_raw))
-print(anova(lm_raw))
+print(summary(lm_uncorr))
+print(anova(lm_uncorr))
 print(summary(lm_corr))
 print(anova(lm_corr))
 
 write.csv(
-  tidy(lm_raw),
-  file.path(output_dir, "interaction_BAG_raw_BrainAge.csv"),
+  tidy(lm_uncorr),
+  file.path(output_dir, "interaction_BAG_uncorr_BrainAge.csv"),
   row.names = FALSE
 )
 write.csv(
@@ -84,11 +84,11 @@ write.csv(
 )
 
 # Pairwise comparison of Age slopes.
-raw_emtrends <- emtrends(lm_raw, ~ group, var = "Age")
+uncorr_emtrends <- emtrends(lm_uncorr, ~ group, var = "Age")
 corr_emtrends <- emtrends(lm_corr, ~ group, var = "Age")
 
-print(raw_emtrends)
-print(pairs(raw_emtrends))
+print(uncorr_emtrends)
+print(pairs(uncorr_emtrends))
 print(corr_emtrends)
 print(pairs(corr_emtrends))
 
@@ -99,7 +99,7 @@ plot_df <- df |>
   filter(
     !is.na(Age),
     !is.na(group),
-    !is.na(BAG_raw_BrainAge),
+    !is.na(BAG_uncorr_BrainAge),
     !is.na(BAG_corr_BrainAge)
   )
 
@@ -115,9 +115,9 @@ common_theme <- theme_minimal(base_size = 16) +
     legend.position = "right"
   )
 
-p_raw <- ggplot(
+p_uncorr <- ggplot(
   plot_df,
-  aes(x = Age, y = BAG_raw_BrainAge, color = group, fill = group)
+  aes(x = Age, y = BAG_uncorr_BrainAge, color = group, fill = group)
 ) +
   geom_point(alpha = 0.7, size = 2.5) +
   geom_smooth(method = "lm", se = TRUE, level = 0.95, alpha = 0.20) +
@@ -126,7 +126,7 @@ p_raw <- ggplot(
   scale_fill_manual(values = my_cols, guide = "none") +
   labs(
     x = "Age (years)",
-    y = "BAG_raw (years)",
+    y = "BAG_uncorr (years)",
     title = "Age and uncorrected BAG"
   ) +
   common_theme
@@ -147,12 +147,12 @@ p_corr <- ggplot(
   ) +
   common_theme
 
-combined <- (p_raw + p_corr) +
+combined <- (p_uncorr + p_corr) +
   plot_layout(ncol = 2, guides = "collect") &
   theme(legend.position = "right")
 
 ggsave(
-  file.path(output_dir, "Age_BAG_raw_BAG_corr_BrainAge.png"),
+  file.path(output_dir, "Age_BAG_uncorr_BAG_corr_BrainAge.png"),
   combined,
   width = 12, height = 6, dpi = 600, bg = "white"
 )
