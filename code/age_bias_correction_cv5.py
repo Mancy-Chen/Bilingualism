@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Five-fold cross-validated linear age-bias correction for brain age gap (BAG).
+"""Five-fold cross-validated linear age-bias correction for brain age gap (BAG).
 
 Final notation
 --------------
@@ -8,16 +7,16 @@ PredAge_<Model>    : predicted brain age in years
 BAG_uncorr_<Model> : uncorrected brain-age gap = predicted brain age - chronological age
 BAG_corr_<Model>   : five-fold cross-validated age-bias-corrected BAG
 
-The age-bias term is an intermediate quantity only. It is estimated within each
-training fold and is not stored in the main analysis table.
+The deposited analysis dataset already contains the final BAG_corr values used
+in the manuscript. This script documents and regenerates the correction
+procedure from BAG_uncorr using the project settings:
 
-Historical settings used in this project:
     n_splits=5
     shuffle=True
     random_state=42
 
-For exact reproduction of the published correction, use the saved ``cv_fold``
-column in ``input/brainpad_results_deidentified.xlsx``.
+The age-bias term is estimated within each training fold and applied only to the
+held-out fold.
 """
 
 from __future__ import annotations
@@ -49,10 +48,11 @@ def find_uncorrected_bag_columns(
 
 def fit_age_bias(y: np.ndarray, age: np.ndarray) -> tuple[float, float]:
     """Fit BAG_uncorr = alpha + beta * Age on non-missing training observations."""
-    X = sm.add_constant(age, has_constant="add")
-    fit = sm.OLS(y, X, missing="drop").fit()
-    if len(fit.params) != 2:
-        raise RuntimeError("Age-bias model did not return intercept and age slope.")
+    valid = np.isfinite(y) & np.isfinite(age)
+    if valid.sum() < 3:
+        raise RuntimeError("Too few non-missing observations to fit age bias.")
+    X = sm.add_constant(age[valid], has_constant="add")
+    fit = sm.OLS(y[valid], X).fit()
     return float(fit.params[0]), float(fit.params[1])
 
 
@@ -61,13 +61,11 @@ def generate_folds(
     n_splits: int = 5,
     random_state: int = 42,
 ) -> np.ndarray:
-    """Generate KFold assignments numbered 1..n_splits."""
+    """Generate reproducible KFold assignments numbered 1..n_splits."""
     kf = KFold(n_splits=n_splits, shuffle=True, random_state=random_state)
     fold_id = np.full(n_rows, -1, dtype=int)
     for fold_idx, (_, test_idx) in enumerate(kf.split(np.arange(n_rows)), start=1):
         fold_id[test_idx] = fold_idx
-    if np.any(fold_id < 1):
-        raise RuntimeError("Failed to assign a fold to every row.")
     return fold_id
 
 
@@ -81,16 +79,14 @@ def correct_bag_with_folds(
     age = pd.to_numeric(df[age_col], errors="coerce").to_numpy(dtype=float)
     outputs: dict[str, np.ndarray] = {}
     parameter_rows: list[dict] = []
-    unique_folds = sorted(int(f) for f in np.unique(fold_id) if int(f) >= 1)
 
     for uncorr_col in uncorr_bag_cols:
         model = uncorr_col[len(UNCORR_PREFIX):]
         corr_col = f"{CORR_PREFIX}{model}"
-
         y = pd.to_numeric(df[uncorr_col], errors="coerce").to_numpy(dtype=float)
         corr_out = np.full(len(df), np.nan, dtype=float)
 
-        for fold in unique_folds:
+        for fold in sorted(np.unique(fold_id)):
             train_idx = np.flatnonzero(fold_id != fold)
             test_idx = np.flatnonzero(fold_id == fold)
 
@@ -101,7 +97,7 @@ def correct_bag_with_folds(
             parameter_rows.append(
                 {
                     "model": model,
-                    "fold": fold,
+                    "fold": int(fold),
                     "alpha": alpha,
                     "beta_age": beta,
                     "n_train_nonmissing": int(
@@ -132,18 +128,9 @@ def main() -> None:
         default="output/brainpad_results_bias_corrected.xlsx",
         help="Output .xlsx file.",
     )
-    parser.add_argument(
-        "--sheet",
-        default="Analysis_Data",
-        help="Input sheet name or zero-based sheet index.",
-    )
+    parser.add_argument("--sheet", default="Analysis_Data")
     parser.add_argument("--age-col", default="Age")
     parser.add_argument("--uncorr-prefix", default=UNCORR_PREFIX)
-    parser.add_argument(
-        "--fold-col",
-        default="cv_fold",
-        help="Existing fold-assignment column. Use an empty string to regenerate folds.",
-    )
     parser.add_argument("--n-splits", type=int, default=5)
     parser.add_argument("--random-state", type=int, default=42)
     args = parser.parse_args()
@@ -162,21 +149,11 @@ def main() -> None:
         raise ValueError(f"Missing age column: {args.age_col!r}")
 
     uncorr_bag_cols = find_uncorrected_bag_columns(df, prefix=args.uncorr_prefix)
-
-    use_fold_col = bool(args.fold_col)
-    if use_fold_col:
-        if args.fold_col not in df.columns:
-            raise ValueError(f"Missing fold column: {args.fold_col!r}")
-        fold_series = pd.to_numeric(df[args.fold_col], errors="coerce")
-        if fold_series.isna().any():
-            raise ValueError("Fold column contains missing/non-numeric values.")
-        fold_id = fold_series.astype(int).to_numpy()
-    else:
-        fold_id = generate_folds(
-            n_rows=len(df),
-            n_splits=args.n_splits,
-            random_state=args.random_state,
-        )
+    fold_id = generate_folds(
+        n_rows=len(df),
+        n_splits=args.n_splits,
+        random_state=args.random_state,
+    )
 
     corrected_df, params_df = correct_bag_with_folds(
         df=df,
@@ -186,7 +163,6 @@ def main() -> None:
     )
 
     out_df = df.copy()
-    out_df["cv_fold"] = fold_id
     for col in corrected_df.columns:
         out_df[col] = corrected_df[col]
 
@@ -197,7 +173,7 @@ def main() -> None:
     print(f"Input:  {input_path}")
     print(f"Rows:   {len(df)}")
     print(f"Models: {len(uncorr_bag_cols)}")
-    print(f"Folds:  {sorted(np.unique(fold_id).tolist())}")
+    print(f"Folds:  {args.n_splits}")
     print(f"Saved:  {output_path}")
 
 
