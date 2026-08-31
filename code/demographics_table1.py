@@ -47,6 +47,8 @@ CONTINUOUS_VARIABLES = [
 ]
 
 EDUCATION_CANDIDATES = [
+    "University_degree_or_current_enrolment",
+    "university_degree_or_current_enrolment",
     "University_degree_current_university_enrolment",
     "university_degree_current_university_enrolment",
     "University_degree_current_enrolment",
