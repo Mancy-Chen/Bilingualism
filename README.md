@@ -16,7 +16,7 @@ Final analytic sample: **N = 105**.
 
 The analytic groups are separate for statistical analysis, but professional training and activities may overlap, particularly between translators and interpreters.
 
-Six pretrained brain-age models were evaluated. The primary brain-age outcome is the five-fold cross-validated age-bias-corrected brain age gap. The repository contains code for cross-validated age-bias correction, six-model group and Age × Group analyses, model-quality assessment, BrainAge-specific follow-up and sensitivity analyses, figure generation, and exploratory ROI-wise structure–brain-age analyses.
+Six pretrained brain-age models were evaluated. The primary brain-age outcome is the five-fold cross-validated age-bias-corrected brain age gap. The repository contains code for Table 1 participant characteristics, cross-validated age-bias correction, six-model group and Age × Group analyses, model-quality assessment, BrainAge-specific follow-up and sensitivity analyses, figure generation, and exploratory ROI-wise structure–brain-age analyses.
 
 ## Brain-age notation and variable names
 
@@ -72,6 +72,7 @@ Bilingualism/
 │   └── README.md
 │
 ├── code/
+│   ├── demographics_table1.py
 │   ├── age_bias_correction_cv5.py
 │   ├── model_quality_metrics.py
 │   ├── violin_plot_cohonf.py
@@ -125,6 +126,18 @@ For the final analytic sample the expected size is 105 participants × 100 ROIs 
 FastSurfer DKT+ASEG label image used only for mapping ROI statistics back into brain space and generating NIfTI heatmaps. The statistical ROI analyses do not require this file.
 
 ## Code
+
+### `code/demographics_table1.py`
+
+Reproduces the participant-characteristics summary used for Table 1:
+
+- mean ± SD for age, FSIQ, age of L2 acquisition, LexTALE, and ICV
+- one-way ANOVA across the three groups for continuous variables
+- female/male counts and percentages
+- one overall chi-square test for sex distribution
+- university degree/current university enrolment when the corresponding indicator is available
+
+The default output is `output/table1_demographics.csv`. If the public analysis table omits a redundant participant-level university indicator, the design-based 100% row can be included explicitly with `--include-design-based-education`; the script reports that this row comes from the predefined study inclusion criterion rather than inferring it from the data.
 
 ### `code/age_bias_correction_cv5.py`
 
@@ -244,15 +257,16 @@ The script:
 ## Analysis workflow
 
 1. Obtain the approved deidentified derived data from Zenodo and place the required analysis inputs in `input/`.
-2. Reproduce or verify the five-fold age-bias correction with `age_bias_correction_cv5.py`.
-3. Characterise prediction error and residual age dependence with `model_quality_metrics.py`.
-4. Run the primary six-model `BAG_corr` group comparison with `violin_plot_cohonf.py`.
-5. Run the six-model `Age × Group` analysis and BrainAge robustness analyses with `age_group_sensitivity.R`.
-6. Run BrainAge-specific age-slope and age/sex figure analyses with `scatter_plot_regression.R`.
-7. Generate manuscript-style BrainAge figures with `scatter_plot_violin_plot_save_separately.R`.
-8. Run formal effect-coded ROI group models with `roi_group_models.py`.
-9. Run within-group ROI correlations, Fisher comparisons, and optional heatmaps with `heatmap.nii.gz_bias_corrected.py`.
-10. Generated figures and tables are written to `output/`.
+2. Reproduce Table 1 participant characteristics with `demographics_table1.py`.
+3. Reproduce or verify the five-fold age-bias correction with `age_bias_correction_cv5.py`.
+4. Characterise prediction error and residual age dependence with `model_quality_metrics.py`.
+5. Run the primary six-model `BAG_corr` group comparison with `violin_plot_cohonf.py`.
+6. Run the six-model `Age × Group` analysis and BrainAge robustness analyses with `age_group_sensitivity.R`.
+7. Run BrainAge-specific age-slope and age/sex figure analyses with `scatter_plot_regression.R`.
+8. Generate manuscript-style BrainAge figures with `scatter_plot_violin_plot_save_separately.R`.
+9. Run formal effect-coded ROI group models with `roi_group_models.py`.
+10. Run within-group ROI correlations, Fisher comparisons, and optional heatmaps with `heatmap.nii.gz_bias_corrected.py`.
+11. Generated figures and tables are written to `output/`.
 
 ## Statistical interpretation
 
