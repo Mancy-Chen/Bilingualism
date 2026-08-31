@@ -1,6 +1,7 @@
 ###############################################################################
 # Manuscript-style BrainAge violin + scatter figures
 # Uses BAG_uncorr_BrainAge and BAG_corr_BrainAge.
+# Figure labels display BAG with "raw" or "corr" as a subscript.
 ###############################################################################
 
 library(readxl)
@@ -44,8 +45,23 @@ my_cols <- c(
   interpreters = "#2ca02c"
 )
 
-make_pair <- function(type_name, title_text, output_name) {
+make_pair <- function(type_name, output_name) {
   dat <- df_long |> filter(type == type_name)
+
+  # Plotmath labels: BAG_raw or BAG_corr with the suffix shown as a subscript.
+  if (type_name == "BAG_uncorr") {
+    bag_label <- expression(BAG[raw])
+    bag_label_years <- expression(BAG[raw] ~ "(years)")
+    violin_title <- expression("Group distribution of " * BAG[raw])
+    scatter_title <- expression("Linear association between age and " * BAG[raw])
+    wide_col <- "BAG_uncorr_BrainAge"
+  } else {
+    bag_label <- expression(BAG[corr])
+    bag_label_years <- expression(BAG[corr] ~ "(years)")
+    violin_title <- expression("Group distribution of " * BAG[corr])
+    scatter_title <- expression("Linear association between age and " * BAG[corr])
+    wide_col <- "BAG_corr_BrainAge"
+  }
 
   omnibus <- anova_test(dat, BAG ~ group)
   print(omnibus)
@@ -75,16 +91,19 @@ make_pair <- function(type_name, title_text, output_name) {
       linewidth = 0.9
     ) +
     stat_summary(
-      fun = mean, geom = "point",
-      shape = 21, size = 3.2,
-      fill = "white", color = "black"
+      fun = mean,
+      geom = "point",
+      shape = 21,
+      size = 3.2,
+      fill = "white",
+      color = "black"
     ) +
     geom_hline(yintercept = 0, linetype = "dashed") +
     scale_fill_manual(values = my_cols, guide = "none") +
     labs(
       x = "Group",
-      y = paste0(type_name, " (years)"),
-      title = paste("Group distribution of", type_name)
+      y = bag_label_years,
+      title = violin_title
     ) +
     theme_minimal(base_size = 16)
 
@@ -97,12 +116,6 @@ make_pair <- function(type_name, title_text, output_name) {
         bracket.size = 0.7,
         size = 4.5
       )
-  }
-
-  wide_col <- if (type_name == "BAG_uncorr") {
-    "BAG_uncorr_BrainAge"
-  } else {
-    "BAG_corr_BrainAge"
   }
 
   scatter_dat <- df |>
@@ -124,8 +137,8 @@ make_pair <- function(type_name, title_text, output_name) {
     scale_fill_manual(values = my_cols, guide = "none") +
     labs(
       x = "Age (years)",
-      y = paste0(type_name, " (years)"),
-      title = title_text
+      y = bag_label,
+      title = scatter_title
     ) +
     theme_minimal(base_size = 16)
 
@@ -136,18 +149,19 @@ make_pair <- function(type_name, title_text, output_name) {
   ggsave(
     file.path(output_dir, output_name),
     combined,
-    width = 14, height = 7, dpi = 600, bg = "white"
+    width = 14,
+    height = 7,
+    dpi = 600,
+    bg = "white"
   )
 }
 
 make_pair(
   "BAG_uncorr",
-  "Linear association between age and BAG_uncorr",
   "Figure_BAG_uncorr_BrainAge.png"
 )
 
 make_pair(
   "BAG_corr",
-  "Linear association between age and BAG_corr",
   "Figure_BAG_corr_BrainAge.png"
 )
