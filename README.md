@@ -6,7 +6,7 @@ Analysis and reproducibility repository for the manuscript:
 
 ## Overview
 
-This study examines MRI-derived brain-age measures in three mutually exclusive language-experience groups:
+This study examines MRI-derived brain-age measures in three analytic language-experience groups:
 
 - 44 non-professional bilinguals
 - 35 translators
@@ -14,7 +14,9 @@ This study examines MRI-derived brain-age measures in three mutually exclusive l
 
 Final analytic sample: **N = 105**.
 
-Six pretrained brain-age models were evaluated. The primary brain-age outcome is the five-fold cross-validated age-bias-corrected brain age gap. The repository contains code for cross-validated age-bias correction, six-model screening, BrainAge-specific age–BAG analyses, figure generation, and exploratory ROI-wise structure–brain-age analyses.
+The analytic groups are separate for statistical analysis, but professional training and activities may overlap, particularly between translators and interpreters.
+
+Six pretrained brain-age models were evaluated. The primary brain-age outcome is the five-fold cross-validated age-bias-corrected brain age gap. The repository contains code for cross-validated age-bias correction, six-model group and Age × Group analyses, model-quality assessment, BrainAge-specific follow-up and sensitivity analyses, figure generation, and exploratory ROI-wise structure–brain-age analyses.
 
 ## Brain-age notation and variable names
 
@@ -23,6 +25,8 @@ To keep predicted age, uncorrected BAG, and corrected BAG visually distinct, the
 - **PredAge**: predicted brain age in years
 - **BAG_uncorr**: uncorrected brain age gap = predicted brain age − chronological age
 - **BAG_corr**: five-fold cross-validated age-bias-corrected brain age gap
+
+`BAG_uncorr` corresponds to **BAG_raw** in the manuscript.
 
 The age-bias term used to obtain `BAG_corr` is an intermediate quantity estimated within each training fold. It is not stored in the main subject-level analysis table because it is not used by downstream statistical analyses. The fold-specific intercept and age-slope parameters can be written separately by `age_bias_correction_cv5.py`.
 
@@ -69,16 +73,19 @@ Bilingualism/
 │
 ├── code/
 │   ├── age_bias_correction_cv5.py
+│   ├── model_quality_metrics.py
 │   ├── violin_plot_cohonf.py
+│   ├── age_group_sensitivity.R
 │   ├── scatter_plot_regression.R
 │   ├── scatter_plot_violin_plot_save_separately.R
+│   ├── roi_group_models.py
 │   └── heatmap.nii.gz_bias_corrected.py
 │
 └── output/
     └── README.md
 ```
 
-Participant-level derived data are not committed by default. See `input/README.md` for the expected input files and data-sharing notes.
+Participant-level derived data are not committed to GitHub. Deidentified derived data supporting the findings are available through Zenodo; see **Data availability and privacy** below.
 
 ## Input data
 
@@ -152,9 +159,20 @@ python code/age_bias_correction_cv5.py \
 
 The script reads every `BAG_uncorr_<Model>` column and writes/overwrites the corresponding `BAG_corr_<Model>` column. Fold-specific `alpha` and `beta_age` values are saved in a separate `cv_parameters` sheet.
 
+### `code/model_quality_metrics.py`
+
+Computes the model-quality characteristics reported for all six pretrained models:
+
+- mean absolute error (MAE)
+- root mean squared error (RMSE)
+- mean prediction error
+- residual age dependence quantified as the `Age–BAG_uncorr` slope
+
+The output is written to `output/model_quality_metrics.csv`.
+
 ### `code/violin_plot_cohonf.py`
 
-Six-model screening and visualization.
+Six-model group comparison and visualisation.
 
 Main operations:
 
@@ -164,28 +182,30 @@ Main operations:
 - applies Benjamini–Hochberg FDR correction across the six model-specific omnibus tests
 - performs within-model Tukey HSD comparisons
 - calculates omnibus effect sizes
-- saves a model-screening CSV and violin plot to `output/`
+- saves a model-comparison CSV and violin plot to `output/`
 
 Set `USE_CORRECTED = True` for the primary `BAG_corr` analysis.
 
+### `code/age_group_sensitivity.R`
+
+Reproduces the revised age-related analyses:
+
+- `Age × Group` interaction tests separately for all six `BAG_corr` models
+- Benjamini–Hochberg FDR correction across the six interaction tests
+- common-age-range sensitivity analysis for BrainAge
+- Cook's-distance sensitivity analysis for the BrainAge interaction
+- interpreter-specific Cook's-distance slope analysis
+- interpreter-specific Huber robust regression
+
 ### `code/scatter_plot_regression.R`
 
-BrainAge-specific age–BAG follow-up analyses using:
-
-```text
-BAG_uncorr_BrainAge
-BAG_corr_BrainAge
-```
-
-The script performs:
+BrainAge-specific age–BAG follow-up analyses and figures:
 
 - group-specific Age–BAG slopes
-- `Age × Group` interaction models
+- BrainAge `Age × Group` interaction model
 - pairwise comparisons of age slopes with `emmeans::emtrends`
 - uncorrected and corrected BAG age plots
-- the Age × Sex sensitivity analysis for `BAG_corr`
-
-Results and figures are written to `output/`.
+- the `Age × Sex` sensitivity analysis for BrainAge `BAG_corr`
 
 ### `code/scatter_plot_violin_plot_save_separately.R`
 
@@ -196,18 +216,25 @@ BAG_uncorr_BrainAge
 BAG_corr_BrainAge
 ```
 
+### `code/roi_group_models.py`
+
+Reproduces the revised formal ROI models:
+
+- residualises ROI volumes for `ICV_ml`, age, and sex
+- uses sum-to-zero group contrasts
+- estimates the average volume–BAG_corr association across groups
+- tests the omnibus `volume_resid × group` interaction for each ROI
+- applies FDR correction separately across 100 main-effect and interaction tests
+- outputs descriptive within-group OLS slopes
+
 ### `code/heatmap.nii.gz_bias_corrected.py`
 
-Exploratory ROI-wise structure–brain-age analysis. The default outcome is:
-
-```text
-BAG_corr_BrainAge
-```
+Exploratory ROI-wise structure–brain-age analysis. The default outcome is `BAG_corr_BrainAge`.
 
 The script:
 
 - merges subject-level BAG data with FastSurfer ROI volumes
-- residualizes ROI volumes for `ICV_ml`, age, and sex
+- residualises ROI volumes for `ICV_ml`, age, and sex
 - computes within-group Pearson and Spearman associations
 - applies FDR correction across ROIs
 - performs Fisher r-to-z between-group correlation comparisons
@@ -216,19 +243,24 @@ The script:
 
 ## Analysis workflow
 
-1. Place approved derived input files in `input/`.
+1. Obtain the approved deidentified derived data from Zenodo and place the required analysis inputs in `input/`.
 2. Reproduce or verify the five-fold age-bias correction with `age_bias_correction_cv5.py`.
-3. Run the primary six-model `BAG_corr` screen with `violin_plot_cohonf.py`.
-4. Run BrainAge-specific age–BAG follow-up analyses with `scatter_plot_regression.R`.
-5. Generate manuscript-style BrainAge figures with `scatter_plot_violin_plot_save_separately.R`.
-6. Run exploratory ROI analyses with `heatmap.nii.gz_bias_corrected.py`.
-7. Generated figures and tables are written to `output/`.
+3. Characterise prediction error and residual age dependence with `model_quality_metrics.py`.
+4. Run the primary six-model `BAG_corr` group comparison with `violin_plot_cohonf.py`.
+5. Run the six-model `Age × Group` analysis and BrainAge robustness analyses with `age_group_sensitivity.R`.
+6. Run BrainAge-specific age-slope and age/sex figure analyses with `scatter_plot_regression.R`.
+7. Generate manuscript-style BrainAge figures with `scatter_plot_violin_plot_save_separately.R`.
+8. Run formal effect-coded ROI group models with `roi_group_models.py`.
+9. Run within-group ROI correlations, Fisher comparisons, and optional heatmaps with `heatmap.nii.gz_bias_corrected.py`.
+10. Generated figures and tables are written to `output/`.
 
 ## Statistical interpretation
 
-The six-model analysis of **BAG_corr** is the primary model-screening analysis. Model-specific findings should be interpreted in the context of the multiplicity-corrected six-model result.
+The six-model analysis of **BAG_corr** is the primary basis for inference about group differences, with FDR correction across the six model-level tests.
 
-BrainAge-specific age-slope and ROI analyses are follow-up/model-specific characterization analyses rather than independent confirmatory tests.
+The six-model `Age × Group` analysis is likewise corrected across the six pretrained models.
+
+BrainAge-specific age-slope, sensitivity, and ROI analyses are follow-up/model-specific characterisation analyses rather than independent confirmatory tests.
 
 **BAG_uncorr** is retained for transparency and comparison with the original model output, but it is secondary because uncorrected BAG is susceptible to age-related estimation bias.
 
@@ -265,15 +297,21 @@ install.packages(c(
 ))
 ```
 
+`MASS`, distributed with standard R installations, is used for Huber robust regression.
+
 ## Data availability and privacy
 
-This repository contains analysis code but does **not** currently publish raw MRI or participant-level research data.
+The deidentified derived data supporting the findings of this study are available through Zenodo:
 
-Only derived, pseudonymised analysis files should be considered for public release, and only after confirmation that sharing is permitted by the study consent, ethics approval, and institutional governance requirements. Until that approval is confirmed, participant-level input files are excluded by `.gitignore`.
+**DOI: [10.5281/zenodo.22109260](https://doi.org/10.5281/zenodo.22109260)**
+
+Raw MRI data are not distributed through this GitHub repository. The GitHub repository contains the analysis and figure-generation code; participant-level derived input files are intentionally not committed to GitHub.
+
+Only deidentified/pseudonymised data approved for sharing should be used with the reproducibility scripts. Data remain subject to their ethical and institutional use requirements.
 
 ## License
 
-Code in this repository is distributed under the MIT License. Data, if shared separately, remain subject to their own ethical and institutional use restrictions.
+Code in this repository is distributed under the MIT License. Data shared separately remain subject to their own ethical and institutional use restrictions.
 
 ## Contact
 
