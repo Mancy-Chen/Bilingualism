@@ -1,6 +1,12 @@
 # Input data
 
-This folder is reserved for **derived, de-identified/pseudonymised analysis inputs** used by the scripts in `../code/`.
+This folder is reserved for **derived, deidentified/pseudonymised analysis inputs** used by the scripts in `../code/`.
+
+The deidentified derived data supporting the study are available through Zenodo:
+
+**DOI: [10.5281/zenodo.22109260](https://doi.org/10.5281/zenodo.22109260)**
+
+Participant-level files are intentionally not committed directly to GitHub.
 
 ## Expected files
 
@@ -58,6 +64,8 @@ Definitions:
 - `BAG_uncorr` = predicted brain age − chronological age before age-bias correction
 - `BAG_corr` = five-fold cross-validated age-bias-corrected BAG
 
+`BAG_uncorr` corresponds to `BAG_raw` in the manuscript.
+
 The age-bias component itself is an intermediate quantity and is not stored in the main analysis table because downstream analyses do not use it.
 
 The workbook also contains a `Data_Dictionary` sheet.
@@ -81,6 +89,6 @@ FastSurfer DKT+ASEG label image used only when generating NIfTI ROI heatmaps. It
 
 ## Data sharing
 
-Participant-level derived files are intentionally not committed by default. Public release should only occur if permitted by the study consent, ethics approval, and institutional data-governance requirements.
+Raw MRI data are not distributed through this repository. Only approved deidentified/pseudonymised derived files should be used with these scripts, in accordance with the study consent, ethics approval, and institutional data-governance requirements.
 
-The repository `.gitignore` prevents accidental commits of `.xlsx`, `.csv`, `.mgz`, `.nii`, and `.nii.gz` files in this folder unless those rules are intentionally changed after data-sharing approval.
+The repository `.gitignore` prevents accidental commits of `.xlsx`, `.csv`, `.mgz`, `.nii`, and `.nii.gz` files in this folder.
