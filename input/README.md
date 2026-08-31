@@ -28,8 +28,9 @@ Core participant variables include:
 - `FSIQ`
 - `AoA`
 - `LexTale`
+- `University_degree_or_current_enrolment`
+- `Parent_university_degree`
 - `ICV_ml`
-- `cv_fold`
 
 Brain-age variables use the final reproducibility notation:
 
@@ -50,14 +51,6 @@ BRAID_WM
 BRAID_GM
 ```
 
-For example:
-
-```text
-PredAge_BrainAge
-BAG_uncorr_BrainAge
-BAG_corr_BrainAge
-```
-
 Definitions:
 
 - `PredAge` = predicted brain age in years
@@ -66,7 +59,7 @@ Definitions:
 
 `BAG_uncorr` corresponds to `BAG_raw` in the manuscript.
 
-The age-bias component itself is an intermediate quantity and is not stored in the main analysis table because downstream analyses do not use it.
+The deposited workbook contains the final `BAG_corr` values used in the statistical analyses. The age-bias component itself is an intermediate quantity and is not required by the downstream analyses.
 
 The workbook also contains a `Data_Dictionary` sheet.
 
